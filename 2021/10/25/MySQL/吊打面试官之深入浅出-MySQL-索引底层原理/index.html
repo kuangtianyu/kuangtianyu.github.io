@@ -1,0 +1,1421 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+
+
+<head>
+    <meta charset="utf-8">
+    <meta name="keywords" content="吊打面试官之深入浅出 MySQL 索引底层原理, Sky">
+    <meta name="description" content="1、前置知识在了解 MySQL 索引的底层原理之前，我们需要知道 MySQL 中数据页的相关知识，知道各个数据页可以组成一个双向链表，而每个数据页中的记录会按照主键值从小到大的顺序组成一个单向链表，每个数据页都会为存储在它里边的记录生成一个">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="renderer" content="webkit|ie-stand|ie-comp">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="referrer" content="no-referrer-when-downgrade">
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+
+
+    
+
+    <title>吊打面试官之深入浅出 MySQL 索引底层原理 | Sky</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+
+    <link rel="stylesheet" type="text/css" href="/libs/awesome/css/all.min.css">
+    <link rel="stylesheet" type="text/css" href="/libs/materialize/materialize.min.css">
+    <link rel="stylesheet" type="text/css" href="/libs/aos/aos.css">
+    <link rel="stylesheet" type="text/css" href="/libs/animate/animate.min.css">
+    <link rel="stylesheet" type="text/css" href="/libs/lightGallery/css/lightgallery.min.css">
+    <link rel="stylesheet" type="text/css" href="/css/matery.css">
+    <link rel="stylesheet" type="text/css" href="/css/my.css">
+
+    <script src="/libs/jquery/jquery-3.6.0.min.js"></script>
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+    <header class="navbar-fixed">
+    <nav id="headNav" class="bg-color nav-transparent">
+        <div id="navContainer" class="nav-wrapper container">
+            <div class="brand-logo">
+                <a href="/" class="waves-effect waves-light">
+                    
+                    <img src="/medias/logo.png" class="logo-img" alt="LOGO">
+                    
+                    <span class="logo-span">Sky</span>
+                </a>
+            </div>
+            
+
+<a href="#" data-target="mobile-nav" class="sidenav-trigger button-collapse"><i class="fas fa-bars"></i></a>
+<ul class="right nav-menu">
+  
+  <li class="hide-on-med-and-down nav-item">
+    
+    <a href="/" class="waves-effect waves-light">
+      
+      <i class="fas fa-home" style="zoom: 0.6;"></i>
+      
+      <span>首页</span>
+    </a>
+    
+  </li>
+  
+  <li class="hide-on-med-and-down nav-item">
+    
+    <a href="/tags" class="waves-effect waves-light">
+      
+      <i class="fas fa-tags" style="zoom: 0.6;"></i>
+      
+      <span>标签</span>
+    </a>
+    
+  </li>
+  
+  <li class="hide-on-med-and-down nav-item">
+    
+    <a href="/categories" class="waves-effect waves-light">
+      
+      <i class="fas fa-bookmark" style="zoom: 0.6;"></i>
+      
+      <span>分类</span>
+    </a>
+    
+  </li>
+  
+  <li class="hide-on-med-and-down nav-item">
+    
+    <a href="/archives" class="waves-effect waves-light">
+      
+      <i class="fas fa-archive" style="zoom: 0.6;"></i>
+      
+      <span>归档</span>
+    </a>
+    
+  </li>
+  
+  <li class="hide-on-med-and-down nav-item">
+    
+    <a href="/about" class="waves-effect waves-light">
+      
+      <i class="fas fa-user-circle" style="zoom: 0.6;"></i>
+      
+      <span>关于</span>
+    </a>
+    
+  </li>
+  
+  <li class="hide-on-med-and-down nav-item">
+    
+    <a href="/contact" class="waves-effect waves-light">
+      
+      <i class="fas fa-comments" style="zoom: 0.6;"></i>
+      
+      <span>留言板</span>
+    </a>
+    
+  </li>
+  
+  <li class="hide-on-med-and-down nav-item">
+    
+    <a href="/friends" class="waves-effect waves-light">
+      
+      <i class="fas fa-address-book" style="zoom: 0.6;"></i>
+      
+      <span>友情链接</span>
+    </a>
+    
+  </li>
+  
+  <li>
+    <a href="#searchModal" class="modal-trigger waves-effect waves-light">
+      <i id="searchIcon" class="fas fa-search" title="搜索" style="zoom: 0.85;"></i>
+    </a>
+  </li>
+</ul>
+
+
+<div id="mobile-nav" class="side-nav sidenav">
+
+    <div class="mobile-head bg-color">
+        
+        <img src="/medias/logo.png" class="logo-img circle responsive-img">
+        
+        <div class="logo-name">Sky</div>
+        <div class="logo-desc">
+            
+            Never really desperate, only the lost of the soul.
+            
+        </div>
+    </div>
+
+    <ul class="menu-list mobile-menu-list">
+        
+        <li class="m-nav-item">
+	  
+		<a href="/" class="waves-effect waves-light">
+			
+			    <i class="fa-fw fas fa-home"></i>
+			
+			首页
+		</a>
+          
+        </li>
+        
+        <li class="m-nav-item">
+	  
+		<a href="/tags" class="waves-effect waves-light">
+			
+			    <i class="fa-fw fas fa-tags"></i>
+			
+			标签
+		</a>
+          
+        </li>
+        
+        <li class="m-nav-item">
+	  
+		<a href="/categories" class="waves-effect waves-light">
+			
+			    <i class="fa-fw fas fa-bookmark"></i>
+			
+			分类
+		</a>
+          
+        </li>
+        
+        <li class="m-nav-item">
+	  
+		<a href="/archives" class="waves-effect waves-light">
+			
+			    <i class="fa-fw fas fa-archive"></i>
+			
+			归档
+		</a>
+          
+        </li>
+        
+        <li class="m-nav-item">
+	  
+		<a href="/about" class="waves-effect waves-light">
+			
+			    <i class="fa-fw fas fa-user-circle"></i>
+			
+			关于
+		</a>
+          
+        </li>
+        
+        <li class="m-nav-item">
+	  
+		<a href="/contact" class="waves-effect waves-light">
+			
+			    <i class="fa-fw fas fa-comments"></i>
+			
+			留言板
+		</a>
+          
+        </li>
+        
+        <li class="m-nav-item">
+	  
+		<a href="/friends" class="waves-effect waves-light">
+			
+			    <i class="fa-fw fas fa-address-book"></i>
+			
+			友情链接
+		</a>
+          
+        </li>
+        
+        
+        <li><div class="divider"></div></li>
+        <li>
+            <a href="https://github.com/blinkfox/hexo-theme-matery" class="waves-effect waves-light" target="_blank">
+                <i class="fab fa-github-square fa-fw"></i>Fork Me
+            </a>
+        </li>
+        
+    </ul>
+</div>
+
+
+        </div>
+
+        
+            <style>
+    .nav-transparent .github-corner {
+        display: none !important;
+    }
+
+    .github-corner {
+        position: absolute;
+        z-index: 10;
+        top: 0;
+        right: 0;
+        border: 0;
+        transform: scale(1.1);
+    }
+
+    .github-corner svg {
+        color: #0f9d58;
+        fill: #fff;
+        height: 64px;
+        width: 64px;
+    }
+
+    .github-corner:hover .octo-arm {
+        animation: a 0.56s ease-in-out;
+    }
+
+    .github-corner .octo-arm {
+        animation: none;
+    }
+
+    @keyframes a {
+        0%,
+        to {
+            transform: rotate(0);
+        }
+        20%,
+        60% {
+            transform: rotate(-25deg);
+        }
+        40%,
+        80% {
+            transform: rotate(10deg);
+        }
+    }
+</style>
+
+<a href="https://github.com/blinkfox/hexo-theme-matery" class="github-corner tooltipped hide-on-med-and-down" target="_blank"
+   data-tooltip="Fork Me" data-position="left" data-delay="50">
+    <svg viewBox="0 0 250 250" aria-hidden="true">
+        <path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path>
+        <path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2"
+              fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path>
+        <path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z"
+              fill="currentColor" class="octo-body"></path>
+    </svg>
+</a>
+        
+    </nav>
+
+</header>
+
+    
+
+
+
+<div class="bg-cover pd-header post-cover" style="background-image: url('/medias/featureimages/5.jpg')">
+    <div class="container" style="right: 0px;left: 0px;">
+        <div class="row">
+            <div class="col s12 m12 l12">
+                <div class="brand">
+                    <h1 class="description center-align post-title">吊打面试官之深入浅出 MySQL 索引底层原理</h1>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+<main class="post-container content">
+
+    
+    <link rel="stylesheet" href="/libs/tocbot/tocbot.css">
+<style>
+    #articleContent h1::before,
+    #articleContent h2::before,
+    #articleContent h3::before,
+    #articleContent h4::before,
+    #articleContent h5::before,
+    #articleContent h6::before {
+        display: block;
+        content: " ";
+        height: 100px;
+        margin-top: -100px;
+        visibility: hidden;
+    }
+
+    #articleContent :focus {
+        outline: none;
+    }
+
+    .toc-fixed {
+        position: fixed;
+        top: 64px;
+    }
+
+    .toc-widget {
+        width: 345px;
+        padding-left: 20px;
+    }
+
+    .toc-widget .toc-title {
+        padding: 35px 0 15px 17px;
+        font-size: 1.5rem;
+        font-weight: bold;
+        line-height: 1.5rem;
+    }
+
+    .toc-widget ol {
+        padding: 0;
+        list-style: none;
+    }
+
+    #toc-content {
+        padding-bottom: 30px;
+        overflow: auto;
+    }
+
+    #toc-content ol {
+        padding-left: 10px;
+    }
+
+    #toc-content ol li {
+        padding-left: 10px;
+    }
+
+    #toc-content .toc-link:hover {
+        color: #42b983;
+        font-weight: 700;
+        text-decoration: underline;
+    }
+
+    #toc-content .toc-link::before {
+        background-color: transparent;
+        max-height: 25px;
+
+        position: absolute;
+        right: 23.5vw;
+        display: block;
+    }
+
+    #toc-content .is-active-link {
+        color: #42b983;
+    }
+
+    #floating-toc-btn {
+        position: fixed;
+        right: 15px;
+        bottom: 76px;
+        padding-top: 15px;
+        margin-bottom: 0;
+        z-index: 998;
+    }
+
+    #floating-toc-btn .btn-floating {
+        width: 48px;
+        height: 48px;
+    }
+
+    #floating-toc-btn .btn-floating i {
+        line-height: 48px;
+        font-size: 1.4rem;
+    }
+</style>
+<div class="row">
+    <div id="main-content" class="col s12 m12 l9">
+        <!-- 文章内容详情 -->
+<div id="artDetail">
+    <div class="card">
+        <div class="card-content article-info">
+            <div class="row tag-cate">
+                <div class="col s7">
+                    
+                    <div class="article-tag">
+                        
+                            <a href="/tags/MySQL-%E7%B4%A2%E5%BC%95/">
+                                <span class="chip bg-color">MySQL 索引</span>
+                            </a>
+                        
+                    </div>
+                    
+                </div>
+                <div class="col s5 right-align">
+                    
+                    <div class="post-cate">
+                        <i class="fas fa-bookmark fa-fw icon-category"></i>
+                        
+                            <a href="/categories/MySQL/" class="post-category">
+                                MySQL
+                            </a>
+                        
+                    </div>
+                    
+                </div>
+            </div>
+
+            <div class="post-info">
+                
+                <div class="post-date info-break-policy">
+                    <i class="far fa-calendar-minus fa-fw"></i>发布日期:&nbsp;&nbsp;
+                    2021-10-25
+                </div>
+                
+
+                
+
+                
+
+                
+
+                
+            </div>
+        </div>
+        <hr class="clearfix">
+
+        
+
+        
+
+        <div class="card-content article-card-content">
+            <div id="articleContent">
+                <h2 id="1、前置知识"><a href="#1、前置知识" class="headerlink" title="1、前置知识"></a>1、前置知识</h2><p>在了解 MySQL 索引的底层原理之前，我们需要知道 MySQL 中数据页的相关知识，知道各个数据页可以组成一个双向链表，而每个数据页中的记录会按照主键值从小到大的顺序组成一个单向链表，每个数据页都会为存储在它里边的记录生成一个页目录，在通过主键查找某条记录的时候可以在页目录中使用二分法快速定位到对应的槽，然后再遍历该槽对应分组中的记录即可快速找到指定的记录。页和记录的关系示意图如下：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327103651537.png" alt="image-20220327103651537" style="zoom:80%;" />
+
+<blockquote>
+<p>页a、页b、页c … 页n可以不在物理结构上相连，只要通过双向链表关联即可。</p>
+</blockquote>
+<h2 id="2、没有索引的查找"><a href="#2、没有索引的查找" class="headerlink" title="2、没有索引的查找"></a>2、没有索引的查找</h2><p>为了简化理解，假设是对某个列精确匹配的情况，就是搜索条件中用 = 连接的表达式。</p>
+<h3 id="2-1-在一个页中查找"><a href="#2-1-在一个页中查找" class="headerlink" title="2.1 在一个页中查找"></a>2.1 在一个页中查找</h3><p>假设目前表中的记录比较少，所有的记录都可以被存放到一个页中，在查找记录的时候可以根据搜索条件的不同分为两种情况：</p>
+<ul>
+<li><p>以主键为搜索条件</p>
+<p>  在目录页中使用二分法快速定位到对应的槽，然后再遍历该槽对应分组中的记录即可快速找到指定的记录。</p>
+</li>
+<li><p>以其他列作为搜索条件</p>
+<p>  对非主键列的索引过程就没这么幸运了，在数据页中并没有对非主键列建立所谓的页目录，所以我们无法通过二分法快速定位相应的槽。这种情况下只能从<strong>最小记录</strong>开始依次遍历单链表中的每条记录，然后对比每条记录是否符合搜索条件，这种效率是非常低的。</p>
+</li>
+</ul>
+<blockquote>
+<p>所谓最小记录，在每个页中，都会存在一个最小记录和最大记录，最小记录指向页中的第一条记录，最后一条记录指向最大记录。</p>
+</blockquote>
+<h3 id="2-2-在多页中查找"><a href="#2-2-在多页中查找" class="headerlink" title="2.2 在多页中查找"></a>2.2 在多页中查找</h3><p>大部分情况下表中的记录是非常多的，需要好多的数据页来存储这些记录，在很多页中查找记录的话可以分为两个步骤：</p>
+<ol>
+<li>定位到记录所在的页</li>
+<li>从所在的页中查找相应的记录</li>
+</ol>
+<p>在没有索引的情况下，无论是根据主键列或者其他列值进行查找，由于并不能快速定位到记录所在的页，所以只能从第一个页沿着双向链表一直往下查找，在每一个页中根据我们刚说的查找方法去查找指定的记录。由于要遍历所有的数据页，所有这种方式是很耗时的，于是索引横空出世了。</p>
+<h2 id="3、索引"><a href="#3、索引" class="headerlink" title="3、索引"></a>3、索引</h2><p>为了下文讲解，我们先创建一个表：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">CREATE</span> <span class="keyword">TABLE</span> index_demo(</span><br><span class="line"><span class="operator">-</span><span class="operator">&gt;</span> c1 <span class="type">INT</span>,</span><br><span class="line"><span class="operator">-</span><span class="operator">&gt;</span> c2 <span class="type">INT</span>,</span><br><span class="line"><span class="operator">-</span><span class="operator">&gt;</span> c3 <span class="type">CHAR</span>(<span class="number">1</span>),</span><br><span class="line"><span class="operator">-</span><span class="operator">&gt;</span> <span class="keyword">PRIMARY</span> KEY(c1)</span><br><span class="line"><span class="operator">-</span><span class="operator">&gt;</span> ) ROW_FORMAT <span class="operator">=</span> Compact;</span><br></pre></td></tr></table></figure>
+
+<p>这个表使用的是 Compact 行格式来存储记录的，里面几个字段我们先了解一下，如果不清楚记录行格式的，可以自行了解一下：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327103658873.png" alt="image-20220327103658873" style="zoom:80%;" />
+
+<p>这里我们简化了一下：</p>
+<ul>
+<li>record_type：记录头信息的一项属性，表示记录的类型：0表示普通记录，2表示最小记录，3表示最大记录，1表示目录项记录（这个稍后再说）。</li>
+<li>next_record：记录头信息的一项属性，表示下一条地址相对于本条记录的地址偏移量，我们使用箭头来表示。</li>
+<li>各个列的值：就是我们创建的几个列。</li>
+<li>其他信息：除了上述3种信息之外的所有信息，包括其他隐藏列的值以及记录的额外信息。</li>
+</ul>
+<p>那么将多条记录放到一个数据页里面，就是如下这样：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327103705570.png" alt="image-20220327103705570" style="zoom:80%;" />
+
+<h3 id="3-1-一个简单的索引方案"><a href="#3-1-一个简单的索引方案" class="headerlink" title="3.1 一个简单的索引方案"></a>3.1 一个简单的索引方案</h3><p>我们在根据某个搜索条件查找一些记录的时候为什么要遍历所有的数据页呢？</p>
+<p>因为各个页中的记录并没有规律，我们并不知道我们的搜索条件匹配哪些页中的记录，所以不得不依次遍历所有的数据页。如果想要快速定位要需要查找记录的数据页怎么办？我们为根据主键值快速定位一条记录在页中的位置设立的页目录，于是我们也可以为快速定位到记录所在的数据页而建立一个别的目录，这个目录需要满足如下要求：</p>
+<ul>
+<li>下一个数据页中用户记录的主键值必须大于上一个页中用户记录的主键值。</li>
+</ul>
+<p>此时我们向 index_demo 表中插入三条记录，假设一个数据页只能插入3条记录，实际上数据页16KB，可以插入很多条记录。</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">INSERT</span> <span class="keyword">INTO</span> index_demo <span class="keyword">VALUES</span>(<span class="number">1</span>, <span class="number">4</span>, <span class="string">&#x27;u&#x27;</span>), (<span class="number">3</span>, <span class="number">9</span>, <span class="string">&#x27;d&#x27;</span>), (<span class="number">5</span>, <span class="number">3</span>, <span class="string">&#x27;y&#x27;</span>);</span><br></pre></td></tr></table></figure>
+
+<p>那么这些记录在一个数据页中根据主键值串成一个单链表，如图：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327103713563.png" alt="image-20220327103713563" style="zoom: 33%;" />
+
+<p>如图可以知道，这三条记录都被插入到了编号为10的数据页中了，我们此时再插入一条记录：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">INSERT</span> <span class="keyword">INTO</span> index_demo <span class="keyword">VALUES</span>(<span class="number">4</span>, <span class="number">4</span>, <span class="string">&#x27;a&#x27;</span>);</span><br></pre></td></tr></table></figure>
+
+<p>由于一个页只能插入3条记录，所以不得不再分配一个新的页，如图所示：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327103732905.png" alt="image-20220327103732905" style="zoom:50%;" />
+
+
+
+<p>图中可以看到，新分配的数据页编号可能并不是连续的，也就是说我们使用这些页在存储空间里可能并不挨着。只是通过维护上一个页和下一个页的编号建立了链表关系。</p>
+<p>我们仔细看图就会发现，页28中的一条记录的主键是4，小于页10记录最大的主键5，这就不符合下一个数据页中用户记录的主键值必须大于上一页中用户记录的主键值的要求，所以插入主键值为4的记录时就需要伴随着一次记录移动，交换主键值为4和主键值为5记录的位置。</p>
+<p>这个过程表明了在对页中的记录进行增删改操作的过程中，必须通过一些诸如记录移动的操作来始终保证这个状态一直成立：下一个数据页中用户记录的主键值必须大于上一个页中用户记录的主键值，这个过程可以称为<strong>页分裂</strong>。</p>
+<p>由于<strong>数据页的编号可能并不是连续的</strong>，在向表中插入多条记录后，可能是这样的效果：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327103742109.png" alt="image-20220327103742109" style="zoom:80%;" />
+
+<p>但是主键值始终是连续递增的。由于这些页在物理存储上可能并不挨着，所以如果想从这么多页中根据主键值快速定位到某些记录所在的页，需要给他做个目录，每个页对应一个目录项，每个目录项包括下边两个部分：</p>
+<ul>
+<li>页的用户记录中最小的主键值，用key表示。</li>
+<li>页号，用page_no表示。</li>
+</ul>
+<p>那上边的几个页就会是下面这个样子：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327105822554.png" alt="image-20220327105822554" style="zoom:80%;" />
+
+<p>以页28为例，它对应目录项2，这个目录项中包含着该页的页号28以及该页中用户记录的最小主键值5。我们只需要把几个目录项在物理存储器上连续存储，比如把它们放到一个数组里，就可以实现根据主键值快速查找某条记录的功能了。比如查找主键值为20的记录：</p>
+<ul>
+<li>先从目录页中根据二分法快速确定出主键值为20的记录在目录项3中（12 &lt; 20 &lt; 309），它对应的页是页9。</li>
+<li>再根据前边说的在页中查找记录的方法去页9中定位具体的记录。</li>
+</ul>
+<blockquote>
+<p>这个目录有一个别名，就是索引。</p>
+</blockquote>
+<h3 id="3-2-InnoDB-中的索引方案"><a href="#3-2-InnoDB-中的索引方案" class="headerlink" title="3.2 InnoDB 中的索引方案"></a>3.2 InnoDB 中的索引方案</h3><p>上边之所以称为一个简易的索引方案，是因为我们为了在根据主键值进行查找时使用二分法快速定位具体的目录项而假设所有目录项都可以在物理存储器上连续存储，但是这样做有如下几个问题：</p>
+<ul>
+<li>InnoDB是使用页来作为管理存储空间的基本单位，也就是最多能保证16KB的连续存储空间，而随着表中记录数量的增多，需要非常大的连续的存储空间才能把所有的目录项都放下，这对记录数量非常多的表是不现实的。</li>
+<li>我们经常会对表进行增删，假设把页28中的记录都删除了，页28也就没有存在的必要了，那意味着目录项2也就没有什么存在的必要了，就需要把目录项2后的目录项都向前移动一下，这种设计可不是好主意。</li>
+</ul>
+<p>所以需要一种可以灵活管理所有目录项的方式，于是InnoDB复用了之前存储用户记录的数据页来存储目录项，为了和用户记录做一下区分，把这些表示目录项的记录称为目录项记录。那怎么区分一个记录是普通记录还是目录项记录呢，别忘了我们上边说过的 record_type 属性，改值为1就是代表目录项记录。</p>
+<p>那我们把目录项放到数据页中就是下面这个样子的：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327105830697.png" alt="image-20220327105830697" style="zoom:80%;" />
+
+<p>从图中可以看出，我们用编号为30的页来专门存储目录项记录。这个存储目录项的页和存储用户记录的页都是一样的数据页，也都会为主键值生成页目录，按照主键值进行二分查找。比如我们现在要查找主键值为20的记录：</p>
+<ul>
+<li>先到存储目录项记录的页，也就是页30中通过二分法快速定位到对应的目录项，找到对应的记录所在的页是页9。</li>
+<li>再到存储用户记录的页9中根据二分法快速定位到主键值为20的用户记录。</li>
+</ul>
+<p>虽然说目录项记录中只存储主键值和对应的页号，比用户记录需要的存储空间小多了，但一个页大小也就是16KB，能存放的目录项记录也是有限的，如果表中的数据太多，以至于一个数据页不足以存放所有的目录项记录，怎么办呢？</p>
+<p>当然是再多整一个目录项记录的页，其过程和上边讲的页分裂是差不多的。比如我们插入一条主键值为320的用户记录的话，就需要分配一个新的存储目录项记录的页（这里假设一个页中只能存储4条目录项记录，实际上可以存储很多条），如下图：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327105846297.png" alt="image-20220327105846297" style="zoom:80%;" />
+
+<p>从图中可以看出，插入一条主键值为320的用户记录之后需要两个新的数据页：</p>
+<ul>
+<li>为存储该用户记录而生成的页31</li>
+<li>由于原先存储目录项记录的页30已满，不得不需要一个新的页32来存放页31对应的目录项。</li>
+</ul>
+<p>由于目录项记录的页不止一个，现在查找一条用户记录的步骤如下：</p>
+<ul>
+<li>确定目录项纪录的页。</li>
+<li>通过目录项记录页确定用户记录真实所在的页。</li>
+<li>在真实所在的页中定位到具体的记录。</li>
+</ul>
+<p>在这个查询步骤的第一步中需要定位到目录项记录的页，但是这些页在存储空间中可能并不挨着，如果表中的数据非常多则会产生很多存储目录项记录的页，那我们怎么根据主键值快速定位一个存储目录项记录的页呢？</p>
+<p>我们可以为这些储存目录项记录的页再生成一个更高级的目录，就像是一个多级目录一样，如下图：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327105853476.png" alt="image-20220327105853476" style="zoom:80%;" />
+
+<p>如图，我们生成了一个更高级目录的页33，页中的两条记录分别代表页30和页32。随着表中记录的增加，这个目录的层级会继续增加，简化一下就是下面这个样子：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327105900115.png" alt="image-20220327105900115" style="zoom:80%;" />
+
+<p>看图可知，这就像一个树，它的名字是 B+ 树。</p>
+<p>在一个树中，我们称数据页为一个节点，实际用户记录其实都存储在B+树的最底层的节点上，这些节点被称为叶子节点或叶节点。其余用来存放目录项的节点称为非叶子节点或内节点，最上边的节点称为根节点。这个就是MySQL中 InnoBD 存储引擎中的索引的庐山真面目了。</p>
+<h4 id="3-2-1-聚簇索引"><a href="#3-2-1-聚簇索引" class="headerlink" title="3.2.1 聚簇索引"></a>3.2.1 聚簇索引</h4><p>上边介绍的B+树本身就是一个目录，或者说本身就是一个索引，有两个特点：</p>
+<ul>
+<li>使用记录主键值的大小进行记录和页的排序<ul>
+<li>页内的记录是按照主键的大小顺序排成一个单项链表</li>
+<li>各个存放用户记录的页也是根据页中用户记录的主键大小顺序排成一个双向链表</li>
+<li>存放目录项记录的页分为不同的层次，在同一层次中的页根据目录项记录的主键大小顺序排成一个单向链表</li>
+</ul>
+</li>
+<li>B+树的叶子节点存储的是完整的用户记录，所谓完整的用户记录，就是指这个记录中存储了所有列的值（包括隐藏列）。</li>
+</ul>
+<p>我们把具有这两种特性的B+树称为聚簇索引，所有完整的用户记录都存放在这个聚簇索引的叶子节点处，这个聚簇索引并不需要我们在MySQL中使用INDEX语句去创建，InnoDB 存储引擎会自动的为我们创建聚簇索引。在 InnoDB中，聚簇索引就是数据存储的方式，即所谓的数据即索引，索引即数据。</p>
+<h4 id="3-2-2-二级索引"><a href="#3-2-2-二级索引" class="headerlink" title="3.2.2 二级索引"></a>3.2.2 二级索引</h4><p>上面的聚簇索引只能在搜索条件是主键值时才能发挥作用，因为B+树中的数据都是主键进行排序的，那如果想以别的列作为搜索条件怎么办呢？</p>
+<p>我们可以多建几颗 B+ 树，不同的 B+ 树采用不同的排序规则，比如我们用 c2 列的大小作为数据页、页中记录的排序规则，再建一颗二叉树，如图：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327105906748.png" alt="image-20220327105906748" style="zoom:80%;" />
+
+<p>这个索引与上边介绍的聚簇索引有几处不同：</p>
+<ul>
+<li>使用记录 c2 列的大小进行记录和页的排序<ul>
+<li>页内的记录时按照 c2 列的大小顺序排成一个单向链表</li>
+<li>各个存放用户记录的页也是根据页中记录的 c2 列大小顺序排成一个双向链表</li>
+<li>存放目录项记录的页分为不同层次，在同一层次中的页也是根据页中目录项记录的 c2 列大小排序成一个单向链表。</li>
+</ul>
+</li>
+<li>B+ 树的叶子节点存储的并不是完整的用户记录，而只是c2列+主键这两个列的值。</li>
+<li>目录项记录中不是主键+页号了，而是c2列+页号的了。</li>
+</ul>
+<p>如果我们想通过 c2 列的值查找某些记录的话可以使用我们刚建好的这个B+树了，以查找 c2 列的值为4的记录为例：</p>
+<ul>
+<li>确定目录项记录页</li>
+<li>通过目录项记录页确定用户记录真实存在的页</li>
+<li>在真实存储用户记录的页中定位到具体的记录</li>
+<li>但是这个B+树中的叶子节点中的记录只存储了c2和c1（主键）两个列，所我以们必须再根据主键值去聚簇索引中在查找一遍完整的用户记录。</li>
+</ul>
+<p>上边第四个步骤称为<strong>回表</strong>，我们查找一个记录需要使用到2棵B+树。那为啥不把用户记录放到以c2列为索引的B+树中呢？这样就不需要回表了啊。</p>
+<p>要是这样的话，每建立一颗B+树都要把所有用户的记录都拷贝一份，太浪费内存空间了。这种按照非主键列建立的索引称为<strong>二级索引</strong>，或者<strong>辅助索引</strong>。</p>
+<h4 id="3-2-3-联合索引"><a href="#3-2-3-联合索引" class="headerlink" title="3.2.3 联合索引"></a>3.2.3 联合索引</h4><p>我们也可以同时以多个列的大小作为排序规则，也就是同时为多个列建立索引，比方说我们想按照c2和c3列的大小进行排序，这个包含两层含义：</p>
+<ul>
+<li>先把各个记录的页按照c2列进行排序</li>
+<li>在记录的c2列相同的情况下，采用c3列进行排序</li>
+</ul>
+<p>为c2和c3建立的索引的示意图如下：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327105914540.png" alt="image-20220327105914540" style="zoom:80%;" />
+
+<p>如图所示，我们需要注意几点：</p>
+<ul>
+<li>每条目录项记录都由 c2、c3、页号这三个部分组成，各条记录先按照c2列的值进行排序，如果记录的 c2 列相同，则按照c3列的值进行排序。</li>
+<li>B+ 树的叶子节点处的用户记录由c2、c3和主键c1列组成。</li>
+</ul>
+<p>以c2和c3列的大小为排序规则建立的B+树称为联合索引，本质上也是一个二级索引。它的意思分别为c2和c3列分别建立索引的表述是不同的，不同点如下：</p>
+<ul>
+<li>建立联合索引只会建立如图上一样的1课B+树。</li>
+<li>为c2和c3列分别建立索引会分别以c2和c3列的大小为排序规则建立2棵B+树。</li>
+</ul>
+<h3 id="3-3-MyISAM中的索引方案"><a href="#3-3-MyISAM中的索引方案" class="headerlink" title="3.3 MyISAM中的索引方案"></a>3.3 MyISAM中的索引方案</h3><p>到此我们都是讲的 InnoDB 存储引擎的索引方案，我们现在简单介绍一下MyISAM存储引擎中的所有方案。我们知道InnoDB 中索引即数据，也就是聚簇索引的那棵B+树的叶子节点已经把所有完整的用户记录都包含了，而MyISAM的索引方案虽然也是使用树形结构，但是是将索引和数据分开存储的：</p>
+<ul>
+<li>将表中的记录按照记录的插入顺序单独存储在一个文件中，称之为数据文件。这个文件并不划分为若干个数据页，有多少记录就往这个文件中塞多少记录就行了，可以通过行号而快速访问到一条记录。由于在插入数据的时候并没有按照主键大小排序，所有并不能在这些数据上使用二分法进行查找。</li>
+<li>使用MyISAM存储引擎的表会把索引信息另外存储到一个称为索引文件的另一个文件中。MyISAM 会单独为表的主键创建一个索引，只不过在索引的叶子节点中存储的不是完整的用户记录，而是主键值 + 行号的组合。也就是先通过索引找到对应的行号，再通过行号去找对应的记录。这一点 InnoDB 是不同的，在MyISAM 中每次查询都需要一次回表，意味着 MyISAM 中建立的索引相当于全是二级索引。</li>
+<li>如果有需要的话，我们也可以为其他的列分别建立索引或者建立联合索引，原理和 InnoDB 差不多，不过在叶子节点处存储的是相应的列 + 行号，这些索引页全部都是二级索引。</li>
+</ul>
+<blockquote>
+<p>巨人的肩膀：</p>
+<p><a target="_blank" rel="noopener" href="https://juejin.cn/book/6844733769996304392">https://juejin.cn/book/6844733769996304392</a></p>
+</blockquote>
+
+                
+            </div>
+            <hr/>
+
+            
+
+    <div class="reprint" id="reprint-statement">
+        
+            <div class="reprint__author">
+                <span class="reprint-meta" style="font-weight: bold;">
+                    <i class="fas fa-user">
+                        文章作者:
+                    </i>
+                </span>
+                <span class="reprint-info">
+                    <a href="/about" rel="external nofollow noreferrer">Skyu</a>
+                </span>
+            </div>
+            <div class="reprint__type">
+                <span class="reprint-meta" style="font-weight: bold;">
+                    <i class="fas fa-link">
+                        文章链接:
+                    </i>
+                </span>
+                <span class="reprint-info">
+                    <a href="https://kuangtianyu.github.io/2021/10/25/MySQL/%E5%90%8A%E6%89%93%E9%9D%A2%E8%AF%95%E5%AE%98%E4%B9%8B%E6%B7%B1%E5%85%A5%E6%B5%85%E5%87%BA-MySQL-%E7%B4%A2%E5%BC%95%E5%BA%95%E5%B1%82%E5%8E%9F%E7%90%86/">https://kuangtianyu.github.io/2021/10/25/MySQL/%E5%90%8A%E6%89%93%E9%9D%A2%E8%AF%95%E5%AE%98%E4%B9%8B%E6%B7%B1%E5%85%A5%E6%B5%85%E5%87%BA-MySQL-%E7%B4%A2%E5%BC%95%E5%BA%95%E5%B1%82%E5%8E%9F%E7%90%86/</a>
+                </span>
+            </div>
+            <div class="reprint__notice">
+                <span class="reprint-meta" style="font-weight: bold;">
+                    <i class="fas fa-copyright">
+                        版权声明:
+                    </i>
+                </span>
+                <span class="reprint-info">
+                    本博客所有文章除特別声明外，均采用
+                    <a href="https://creativecommons.org/licenses/by/4.0/deed.zh" rel="external nofollow noreferrer" target="_blank">CC BY 4.0</a>
+                    许可协议。转载请注明来源
+                    <a href="/about" target="_blank">Skyu</a>
+                    !
+                </span>
+            </div>
+        
+    </div>
+
+    <script async defer>
+      document.addEventListener("copy", function (e) {
+        let toastHTML = '<span>复制成功，请遵循本文的转载规则</span><button class="btn-flat toast-action" onclick="navToReprintStatement()" style="font-size: smaller">查看</a>';
+        M.toast({html: toastHTML})
+      });
+
+      function navToReprintStatement() {
+        $("html, body").animate({scrollTop: $("#reprint-statement").offset().top - 80}, 800);
+      }
+    </script>
+
+
+
+            <div class="tag_share" style="display: block;">
+                <div class="post-meta__tag-list" style="display: inline-block;">
+                    
+                        <div class="article-tag">
+                            
+                                <a href="/tags/MySQL-%E7%B4%A2%E5%BC%95/">
+                                    <span class="chip bg-color">MySQL 索引</span>
+                                </a>
+                            
+                        </div>
+                    
+                </div>
+                <div class="post_share" style="zoom: 80%; width: fit-content; display: inline-block; float: right; margin: -0.15rem 0;">
+                    <link rel="stylesheet" type="text/css" href="/libs/share/css/share.min.css">
+<div id="article-share">
+
+    
+    <div class="social-share" data-sites="twitter,facebook,google,qq,qzone,wechat,weibo,douban,linkedin" data-wechat-qrcode-helper="<p>微信扫一扫即可分享！</p>"></div>
+    <script src="/libs/share/js/social-share.min.js"></script>
+    
+
+    
+
+</div>
+
+                </div>
+            </div>
+            
+                <style>
+    #reward {
+        margin: 40px 0;
+        text-align: center;
+    }
+
+    #reward .reward-link {
+        font-size: 1.4rem;
+        line-height: 38px;
+    }
+
+    #reward .btn-floating:hover {
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2), 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    #rewardModal {
+        width: 320px;
+        height: 350px;
+    }
+
+    #rewardModal .reward-title {
+        margin: 15px auto;
+        padding-bottom: 5px;
+    }
+
+    #rewardModal .modal-content {
+        padding: 10px;
+    }
+
+    #rewardModal .close {
+        position: absolute;
+        right: 15px;
+        top: 15px;
+        color: rgba(0, 0, 0, 0.5);
+        font-size: 1.3rem;
+        line-height: 20px;
+        cursor: pointer;
+    }
+
+    #rewardModal .close:hover {
+        color: #ef5350;
+        transform: scale(1.3);
+        -moz-transform:scale(1.3);
+        -webkit-transform:scale(1.3);
+        -o-transform:scale(1.3);
+    }
+
+    #rewardModal .reward-tabs {
+        margin: 0 auto;
+        width: 210px;
+    }
+
+    .reward-tabs .tabs {
+        height: 38px;
+        margin: 10px auto;
+        padding-left: 0;
+    }
+
+    .reward-content ul {
+        padding-left: 0 !important;
+    }
+
+    .reward-tabs .tabs .tab {
+        height: 38px;
+        line-height: 38px;
+    }
+
+    .reward-tabs .tab a {
+        color: #fff;
+        background-color: #ccc;
+    }
+
+    .reward-tabs .tab a:hover {
+        background-color: #ccc;
+        color: #fff;
+    }
+
+    .reward-tabs .wechat-tab .active {
+        color: #fff !important;
+        background-color: #22AB38 !important;
+    }
+
+    .reward-tabs .alipay-tab .active {
+        color: #fff !important;
+        background-color: #019FE8 !important;
+    }
+
+    .reward-tabs .reward-img {
+        width: 210px;
+        height: 210px;
+    }
+</style>
+
+<div id="reward">
+    <a href="#rewardModal" class="reward-link modal-trigger btn-floating btn-medium waves-effect waves-light red">赏</a>
+
+    <!-- Modal Structure -->
+    <div id="rewardModal" class="modal">
+        <div class="modal-content">
+            <a class="close modal-close"><i class="fas fa-times"></i></a>
+            <h4 class="reward-title">你的赏识是我前进的动力</h4>
+            <div class="reward-content">
+                <div class="reward-tabs">
+                    <ul class="tabs row">
+                        <li class="tab col s6 alipay-tab waves-effect waves-light"><a href="#alipay">支付宝</a></li>
+                        <li class="tab col s6 wechat-tab waves-effect waves-light"><a href="#wechat">微 信</a></li>
+                    </ul>
+                    <div id="alipay">
+                        <img src="/medias/reward/alipay.jpg" class="reward-img" alt="支付宝打赏二维码">
+                    </div>
+                    <div id="wechat">
+                        <img src="/medias/reward/wechat.png" class="reward-img" alt="微信打赏二维码">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(function () {
+        $('.tabs').tabs();
+    });
+</script>
+
+            
+        </div>
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+<article id="prenext-posts" class="prev-next articles">
+    <div class="row article-row">
+        
+        <div class="article col s12 m6" data-aos="fade-up">
+            <div class="article-badge left-badge text-color">
+                <i class="fas fa-chevron-left"></i>&nbsp;上一篇</div>
+            <div class="card">
+                <a href="/2021/10/26/Java-%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/%E5%90%8A%E6%89%93%E9%9D%A2%E8%AF%95%E5%AE%98%E4%B9%8B-HashMap-%E7%9A%84%E5%89%8D%E4%B8%96%E4%BB%8A%E7%94%9F/">
+                    <div class="card-image">
+                        
+                        
+                        <img src="/medias/featureimages/7.jpg" class="responsive-img" alt="吊打面试官之 HashMap 的前世今生">
+                        
+                        <span class="card-title">吊打面试官之 HashMap 的前世今生</span>
+                    </div>
+                </a>
+                <div class="card-content article-content">
+                    <div class="summary block-with-text">
+                        
+                            
+                        
+                    </div>
+                    <div class="publish-info">
+                        <span class="publish-date">
+                            <i class="far fa-clock fa-fw icon-date"></i>2021-10-26
+                        </span>
+                        <span class="publish-author">
+                            
+                            <i class="fas fa-bookmark fa-fw icon-category"></i>
+                            
+                            <a href="/categories/Java/" class="post-category">
+                                    Java
+                                </a>
+                            
+                            
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="card-action article-tags">
+                    
+                    <a href="/tags/HashMap/">
+                        <span class="chip bg-color">HashMap</span>
+                    </a>
+                    
+                </div>
+                
+            </div>
+        </div>
+        
+        
+        <div class="article col s12 m6" data-aos="fade-up">
+            <div class="article-badge right-badge text-color">
+                下一篇&nbsp;<i class="fas fa-chevron-right"></i>
+            </div>
+            <div class="card">
+                <a href="/2021/10/24/Java-%E5%B9%B6%E5%8F%91/Java_%E5%90%8A%E6%89%93%E9%9D%A2%E8%AF%95%E5%AE%98%E4%B9%8Bsynchronized%E5%BA%95%E5%B1%82%E5%8E%9F%E7%90%86/">
+                    <div class="card-image">
+                        
+                        
+                        <img src="/medias/featureimages/18.jpg" class="responsive-img" alt="还不会synchronized底层原理？我劝你耗子尾汁">
+                        
+                        <span class="card-title">还不会synchronized底层原理？我劝你耗子尾汁</span>
+                    </div>
+                </a>
+                <div class="card-content article-content">
+                    <div class="summary block-with-text">
+                        
+                            
+                        
+                    </div>
+                    <div class="publish-info">
+                            <span class="publish-date">
+                                <i class="far fa-clock fa-fw icon-date"></i>2021-10-24
+                            </span>
+                        <span class="publish-author">
+                            
+                            <i class="fas fa-bookmark fa-fw icon-category"></i>
+                            
+                            <a href="/categories/Java-%E5%B9%B6%E5%8F%91/" class="post-category">
+                                    Java 并发
+                                </a>
+                            
+                            
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="card-action article-tags">
+                    
+                    <a href="/tags/synchronized/">
+                        <span class="chip bg-color">synchronized</span>
+                    </a>
+                    
+                </div>
+                
+            </div>
+        </div>
+        
+    </div>
+</article>
+
+</div>
+
+
+
+<!-- 代码块功能依赖 -->
+<script type="text/javascript" src="/libs/codeBlock/codeBlockFuction.js"></script>
+
+
+
+<!-- 代码语言 -->
+
+<script type="text/javascript" src="/libs/codeBlock/codeLang.js"></script>
+
+
+<!-- 代码块复制 -->
+
+<script type="text/javascript" src="/libs/codeBlock/codeCopy.js"></script>
+
+
+<!-- 代码块收缩 -->
+
+<script type="text/javascript" src="/libs/codeBlock/codeShrink.js"></script>
+
+
+
+    </div>
+    <div id="toc-aside" class="expanded col l3 hide-on-med-and-down">
+        <div class="toc-widget card" style="background-color: white;">
+            <div class="toc-title"><i class="far fa-list-alt"></i>&nbsp;&nbsp;目录</div>
+            <div id="toc-content"></div>
+        </div>
+    </div>
+</div>
+
+<!-- TOC 悬浮按钮. -->
+
+<div id="floating-toc-btn" class="hide-on-med-and-down">
+    <a class="btn-floating btn-large bg-color">
+        <i class="fas fa-list-ul"></i>
+    </a>
+</div>
+
+
+<script src="/libs/tocbot/tocbot.min.js"></script>
+<script>
+    $(function () {
+        tocbot.init({
+            tocSelector: '#toc-content',
+            contentSelector: '#articleContent',
+            headingsOffset: -($(window).height() * 0.4 - 45),
+            collapseDepth: Number('0'),
+            headingSelector: 'h2, h3, h4'
+        });
+
+        // Set scroll toc fixed.
+        let tocHeight = parseInt($(window).height() * 0.4 - 64);
+        let $tocWidget = $('.toc-widget');
+        $(window).scroll(function () {
+            let scroll = $(window).scrollTop();
+            /* add post toc fixed. */
+            if (scroll > tocHeight) {
+                $tocWidget.addClass('toc-fixed');
+            } else {
+                $tocWidget.removeClass('toc-fixed');
+            }
+        });
+
+        
+        /* 修复文章卡片 div 的宽度. */
+        let fixPostCardWidth = function (srcId, targetId) {
+            let srcDiv = $('#' + srcId);
+            if (srcDiv.length === 0) {
+                return;
+            }
+
+            let w = srcDiv.width();
+            if (w >= 450) {
+                w = w + 21;
+            } else if (w >= 350 && w < 450) {
+                w = w + 18;
+            } else if (w >= 300 && w < 350) {
+                w = w + 16;
+            } else {
+                w = w + 14;
+            }
+            $('#' + targetId).width(w);
+        };
+
+        // 切换TOC目录展开收缩的相关操作.
+        const expandedClass = 'expanded';
+        let $tocAside = $('#toc-aside');
+        let $mainContent = $('#main-content');
+        $('#floating-toc-btn .btn-floating').click(function () {
+            if ($tocAside.hasClass(expandedClass)) {
+                $tocAside.removeClass(expandedClass).hide();
+                $mainContent.removeClass('l9');
+            } else {
+                $tocAside.addClass(expandedClass).show();
+                $mainContent.addClass('l9');
+            }
+            fixPostCardWidth('artDetail', 'prenext-posts');
+        });
+        
+    });
+</script>
+
+    
+
+</main>
+
+
+
+
+    <footer class="page-footer bg-color">
+    
+        <link rel="stylesheet" href="/libs/aplayer/APlayer.min.css">
+<style>
+    .aplayer .aplayer-lrc p {
+        
+        display: none;
+        
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 16px !important;
+    }
+
+    .aplayer .aplayer-lrc p.aplayer-lrc-current {
+        
+        display: none;
+        
+        font-size: 15px;
+        color: #42b983;
+    }
+
+    
+    .aplayer.aplayer-fixed.aplayer-narrow .aplayer-body {
+        left: -66px !important;
+    }
+
+    .aplayer.aplayer-fixed.aplayer-narrow .aplayer-body:hover {
+        left: 0px !important;
+    }
+
+    
+</style>
+<div class="">
+    
+    <div class="row">
+        <meting-js class="col l8 offset-l2 m10 offset-m1 s12"
+                   server="netease"
+                   type="playlist"
+                   id="503838841"
+                   fixed='true'
+                   autoplay='false'
+                   theme='#42b983'
+                   loop='all'
+                   order='random'
+                   preload='auto'
+                   volume='0.7'
+                   list-folded='true'
+        >
+        </meting-js>
+    </div>
+</div>
+
+<script src="/libs/aplayer/APlayer.min.js"></script>
+<script src="/libs/aplayer/Meting.min.js"></script>
+
+    
+
+    <div class="container row center-align"
+         style="margin-bottom: 0px !important;">
+        <div class="col s12 m8 l8 copy-right">
+            Copyright&nbsp;&copy;
+            
+                <span id="year">2019-2022</span>
+            
+            <a href="/about" target="_blank">Sky</a>
+            |&nbsp;Powered by&nbsp;<a href="https://hexo.io/" target="_blank">Hexo</a>
+            |&nbsp;Theme&nbsp;<a href="https://github.com/blinkfox/hexo-theme-matery" target="_blank">Matery</a>
+            <br>
+            
+            
+            
+                
+            
+            
+                <span id="busuanzi_container_site_pv">
+                &nbsp;|&nbsp;<i class="far fa-eye"></i>&nbsp;总访问量:&nbsp;
+                    <span id="busuanzi_value_site_pv" class="white-color"></span>
+            </span>
+            
+            
+                <span id="busuanzi_container_site_uv">
+                &nbsp;|&nbsp;<i class="fas fa-users"></i>&nbsp;总访问人数:&nbsp;
+                    <span id="busuanzi_value_site_uv" class="white-color"></span>
+            </span>
+            
+            <br>
+
+            <!-- 运行天数提醒. -->
+            
+            <br>
+            
+        </div>
+        <div class="col s12 m4 l4 social-link social-statis">
+    <a href="https://github.com/kuangtianyu" class="tooltipped" target="_blank" data-tooltip="访问我的GitHub" data-position="top" data-delay="50">
+        <i class="fab fa-github"></i>
+    </a>
+
+
+
+    <a href="mailto:1575235124@qq.com" class="tooltipped" target="_blank" data-tooltip="邮件联系我" data-position="top" data-delay="50">
+        <i class="fas fa-envelope-open"></i>
+    </a>
+
+
+
+
+
+
+
+    <a href="tencent://AddContact/?fromId=50&fromSubId=1&subcmd=all&uin=1575235124" class="tooltipped" target="_blank" data-tooltip="QQ联系我: 1575235124" data-position="top" data-delay="50">
+        <i class="fab fa-qq"></i>
+    </a>
+
+
+
+
+
+
+
+    <a href="/atom.xml" class="tooltipped" target="_blank" data-tooltip="RSS 订阅" data-position="top" data-delay="50">
+        <i class="fas fa-rss"></i>
+    </a>
+
+</div>
+    </div>
+</footer>
+
+<div class="progress-bar"></div>
+
+
+    <!-- 搜索遮罩框 -->
+<div id="searchModal" class="modal">
+    <div class="modal-content">
+        <div class="search-header">
+            <span class="title"><i class="fas fa-search"></i>&nbsp;&nbsp;搜索</span>
+            <input type="search" id="searchInput" name="s" placeholder="请输入搜索的关键字"
+                   class="search-input">
+        </div>
+        <div id="searchResult"></div>
+    </div>
+</div>
+
+<script type="text/javascript">
+$(function () {
+    var searchFunc = function (path, search_id, content_id) {
+        'use strict';
+        $.ajax({
+            url: path,
+            dataType: "xml",
+            success: function (xmlResponse) {
+                // get the contents from search data
+                var datas = $("entry", xmlResponse).map(function () {
+                    return {
+                        title: $("title", this).text(),
+                        content: $("content", this).text(),
+                        url: $("url", this).text()
+                    };
+                }).get();
+                var $input = document.getElementById(search_id);
+                var $resultContent = document.getElementById(content_id);
+                $input.addEventListener('input', function () {
+                    var str = '<ul class=\"search-result-list\">';
+                    var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+                    $resultContent.innerHTML = "";
+                    if (this.value.trim().length <= 0) {
+                        return;
+                    }
+                    // perform local searching
+                    datas.forEach(function (data) {
+                        var isMatch = true;
+                        var data_title = data.title.trim().toLowerCase();
+                        var data_content = data.content.trim().replace(/<[^>]+>/g, "").toLowerCase();
+                        var data_url = data.url;
+                        data_url = data_url.indexOf('/') === 0 ? data.url : '/' + data_url;
+                        var index_title = -1;
+                        var index_content = -1;
+                        var first_occur = -1;
+                        // only match artiles with not empty titles and contents
+                        if (data_title !== '' && data_content !== '') {
+                            keywords.forEach(function (keyword, i) {
+                                index_title = data_title.indexOf(keyword);
+                                index_content = data_content.indexOf(keyword);
+                                if (index_title < 0 && index_content < 0) {
+                                    isMatch = false;
+                                } else {
+                                    if (index_content < 0) {
+                                        index_content = 0;
+                                    }
+                                    if (i === 0) {
+                                        first_occur = index_content;
+                                    }
+                                }
+                            });
+                        }
+                        // show search results
+                        if (isMatch) {
+                            str += "<li><a href='" + data_url + "' class='search-result-title'>" + data_title + "</a>";
+                            var content = data.content.trim().replace(/<[^>]+>/g, "");
+                            if (first_occur >= 0) {
+                                // cut out 100 characters
+                                var start = first_occur - 20;
+                                var end = first_occur + 80;
+                                if (start < 0) {
+                                    start = 0;
+                                }
+                                if (start === 0) {
+                                    end = 100;
+                                }
+                                if (end > content.length) {
+                                    end = content.length;
+                                }
+                                var match_content = content.substr(start, end);
+                                // highlight all keywords
+                                keywords.forEach(function (keyword) {
+                                    var regS = new RegExp(keyword, "gi");
+                                    match_content = match_content.replace(regS, "<em class=\"search-keyword\">" + keyword + "</em>");
+                                });
+
+                                str += "<p class=\"search-result\">" + match_content + "...</p>"
+                            }
+                            str += "</li>";
+                        }
+                    });
+                    str += "</ul>";
+                    $resultContent.innerHTML = str;
+                });
+            }
+        });
+    };
+
+    searchFunc('/search.xml', 'searchInput', 'searchResult');
+});
+</script>
+
+    <!-- 回到顶部按钮 -->
+<div id="backTop" class="top-scroll">
+    <a class="btn-floating btn-large waves-effect waves-light" href="#!">
+        <i class="fas fa-arrow-up"></i>
+    </a>
+</div>
+
+
+    <script src="/libs/materialize/materialize.min.js"></script>
+    <script src="/libs/masonry/masonry.pkgd.min.js"></script>
+    <script src="/libs/aos/aos.js"></script>
+    <script src="/libs/scrollprogress/scrollProgress.min.js"></script>
+    <script src="/libs/lightGallery/js/lightgallery-all.min.js"></script>
+    <script src="/js/matery.js"></script>
+
+    
+
+    
+
+    <!-- 雪花特效 -->
+    
+
+    <!-- 鼠标星星特效 -->
+    
+
+     
+        <script src="https://ssl.captcha.qq.com/TCaptcha.js"></script>
+        <script src="/libs/others/TencentCaptcha.js"></script>
+        <button id="TencentCaptcha" data-appid="xxxxxxxxxx" data-cbfn="callback" type="button" hidden></button>
+    
+
+    <!-- Baidu Analytics -->
+
+    <!-- Baidu Push -->
+
+<script>
+    (function () {
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        } else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+    
+    <script src="/libs/others/clicklove.js" async="async"></script>
+    
+    
+    <script async src="/libs/others/busuanzi.pure.mini.js"></script>
+    
+
+    
+
+    
+
+    <!--腾讯兔小巢-->
+    
+    
+
+    
+
+    
+
+    
+    <script src="/libs/instantpage/instantpage.js" type="module"></script>
+    
+
+</body>
+
+</html>
