@@ -1,0 +1,1459 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+
+
+<head>
+    <meta charset="utf-8">
+    <meta name="keywords" content="吊打面试官之 redo log 详解, Sky">
+    <meta name="description" content="不知道大家是否还记得事务的四大特性，现在我们回忆一下吧，持久性、一致性、隔离性、原子性。没错，我们今天讲的就是持久性。
+一、啥是 redo log我们想象有这么一个生产环境，就是如果我们只在内存的 Buffer Pool 中修改了页面，事务">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="renderer" content="webkit|ie-stand|ie-comp">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="referrer" content="no-referrer-when-downgrade">
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+
+
+    
+    <style>
+        body{
+            background-image: url(https://cdn.jsdelivr.net/gh/Tokisaki-Galaxy/res/site/medias/background.jpg);
+            background-repeat:no-repeat;
+            background-size: 100% 100%;
+            background-attachment:fixed;
+        }
+    </style>
+
+
+    <title>吊打面试官之 redo log 详解 | Sky</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+
+    <link rel="stylesheet" type="text/css" href="/libs/awesome/css/all.min.css">
+    <link rel="stylesheet" type="text/css" href="/libs/materialize/materialize.min.css">
+    <link rel="stylesheet" type="text/css" href="/libs/aos/aos.css">
+    <link rel="stylesheet" type="text/css" href="/libs/animate/animate.min.css">
+    <link rel="stylesheet" type="text/css" href="/libs/lightGallery/css/lightgallery.min.css">
+    <link rel="stylesheet" type="text/css" href="/css/matery.css">
+    <link rel="stylesheet" type="text/css" href="/css/my.css">
+
+    <script src="/libs/jquery/jquery-3.6.0.min.js"></script>
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+    <header class="navbar-fixed">
+    <nav id="headNav" class="bg-color nav-transparent">
+        <div id="navContainer" class="nav-wrapper container">
+            <div class="brand-logo">
+                <a href="/" class="waves-effect waves-light">
+                    
+                    <img src="/medias/logo.png" class="logo-img" alt="LOGO">
+                    
+                    <span class="logo-span">Sky</span>
+                </a>
+            </div>
+            
+
+<a href="#" data-target="mobile-nav" class="sidenav-trigger button-collapse"><i class="fas fa-bars"></i></a>
+<ul class="right nav-menu">
+  
+  <li class="hide-on-med-and-down nav-item">
+    
+    <a href="/" class="waves-effect waves-light">
+      
+      <i class="fas fa-home" style="zoom: 0.6;"></i>
+      
+      <span>首页</span>
+    </a>
+    
+  </li>
+  
+  <li class="hide-on-med-and-down nav-item">
+    
+    <a href="/tags" class="waves-effect waves-light">
+      
+      <i class="fas fa-tags" style="zoom: 0.6;"></i>
+      
+      <span>标签</span>
+    </a>
+    
+  </li>
+  
+  <li class="hide-on-med-and-down nav-item">
+    
+    <a href="/categories" class="waves-effect waves-light">
+      
+      <i class="fas fa-bookmark" style="zoom: 0.6;"></i>
+      
+      <span>分类</span>
+    </a>
+    
+  </li>
+  
+  <li class="hide-on-med-and-down nav-item">
+    
+    <a href="/archives" class="waves-effect waves-light">
+      
+      <i class="fas fa-archive" style="zoom: 0.6;"></i>
+      
+      <span>归档</span>
+    </a>
+    
+  </li>
+  
+  <li class="hide-on-med-and-down nav-item">
+    
+    <a href="/about" class="waves-effect waves-light">
+      
+      <i class="fas fa-user-circle" style="zoom: 0.6;"></i>
+      
+      <span>关于</span>
+    </a>
+    
+  </li>
+  
+  <li class="hide-on-med-and-down nav-item">
+    
+    <a href="/contact" class="waves-effect waves-light">
+      
+      <i class="fas fa-comments" style="zoom: 0.6;"></i>
+      
+      <span>留言板</span>
+    </a>
+    
+  </li>
+  
+  <li class="hide-on-med-and-down nav-item">
+    
+    <a href="/friends" class="waves-effect waves-light">
+      
+      <i class="fas fa-address-book" style="zoom: 0.6;"></i>
+      
+      <span>友情链接</span>
+    </a>
+    
+  </li>
+  
+  <li>
+    <a href="#searchModal" class="modal-trigger waves-effect waves-light">
+      <i id="searchIcon" class="fas fa-search" title="搜索" style="zoom: 0.85;"></i>
+    </a>
+  </li>
+</ul>
+
+
+<div id="mobile-nav" class="side-nav sidenav">
+
+    <div class="mobile-head bg-color">
+        
+        <img src="/medias/logo.png" class="logo-img circle responsive-img">
+        
+        <div class="logo-name">Sky</div>
+        <div class="logo-desc">
+            
+            Never really desperate, only the lost of the soul.
+            
+        </div>
+    </div>
+
+    <ul class="menu-list mobile-menu-list">
+        
+        <li class="m-nav-item">
+	  
+		<a href="/" class="waves-effect waves-light">
+			
+			    <i class="fa-fw fas fa-home"></i>
+			
+			首页
+		</a>
+          
+        </li>
+        
+        <li class="m-nav-item">
+	  
+		<a href="/tags" class="waves-effect waves-light">
+			
+			    <i class="fa-fw fas fa-tags"></i>
+			
+			标签
+		</a>
+          
+        </li>
+        
+        <li class="m-nav-item">
+	  
+		<a href="/categories" class="waves-effect waves-light">
+			
+			    <i class="fa-fw fas fa-bookmark"></i>
+			
+			分类
+		</a>
+          
+        </li>
+        
+        <li class="m-nav-item">
+	  
+		<a href="/archives" class="waves-effect waves-light">
+			
+			    <i class="fa-fw fas fa-archive"></i>
+			
+			归档
+		</a>
+          
+        </li>
+        
+        <li class="m-nav-item">
+	  
+		<a href="/about" class="waves-effect waves-light">
+			
+			    <i class="fa-fw fas fa-user-circle"></i>
+			
+			关于
+		</a>
+          
+        </li>
+        
+        <li class="m-nav-item">
+	  
+		<a href="/contact" class="waves-effect waves-light">
+			
+			    <i class="fa-fw fas fa-comments"></i>
+			
+			留言板
+		</a>
+          
+        </li>
+        
+        <li class="m-nav-item">
+	  
+		<a href="/friends" class="waves-effect waves-light">
+			
+			    <i class="fa-fw fas fa-address-book"></i>
+			
+			友情链接
+		</a>
+          
+        </li>
+        
+        
+        <li><div class="divider"></div></li>
+        <li>
+            <a href="https://github.com/blinkfox/hexo-theme-matery" class="waves-effect waves-light" target="_blank">
+                <i class="fab fa-github-square fa-fw"></i>Fork Me
+            </a>
+        </li>
+        
+    </ul>
+</div>
+
+
+        </div>
+
+        
+            <style>
+    .nav-transparent .github-corner {
+        display: none !important;
+    }
+
+    .github-corner {
+        position: absolute;
+        z-index: 10;
+        top: 0;
+        right: 0;
+        border: 0;
+        transform: scale(1.1);
+    }
+
+    .github-corner svg {
+        color: #0f9d58;
+        fill: #fff;
+        height: 64px;
+        width: 64px;
+    }
+
+    .github-corner:hover .octo-arm {
+        animation: a 0.56s ease-in-out;
+    }
+
+    .github-corner .octo-arm {
+        animation: none;
+    }
+
+    @keyframes a {
+        0%,
+        to {
+            transform: rotate(0);
+        }
+        20%,
+        60% {
+            transform: rotate(-25deg);
+        }
+        40%,
+        80% {
+            transform: rotate(10deg);
+        }
+    }
+</style>
+
+<a href="https://github.com/blinkfox/hexo-theme-matery" class="github-corner tooltipped hide-on-med-and-down" target="_blank"
+   data-tooltip="Fork Me" data-position="left" data-delay="50">
+    <svg viewBox="0 0 250 250" aria-hidden="true">
+        <path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path>
+        <path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2"
+              fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path>
+        <path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z"
+              fill="currentColor" class="octo-body"></path>
+    </svg>
+</a>
+        
+    </nav>
+
+</header>
+
+    
+
+
+
+<div class="bg-cover pd-header post-cover" style="background-image: url('/medias/featureimages/6.jpg')">
+    <div class="container" style="right: 0px;left: 0px;">
+        <div class="row">
+            <div class="col s12 m12 l12">
+                <div class="brand">
+                    <h1 class="description center-align post-title">吊打面试官之 redo log 详解</h1>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+<main class="post-container content">
+
+    
+    <link rel="stylesheet" href="/libs/tocbot/tocbot.css">
+<style>
+    #articleContent h1::before,
+    #articleContent h2::before,
+    #articleContent h3::before,
+    #articleContent h4::before,
+    #articleContent h5::before,
+    #articleContent h6::before {
+        display: block;
+        content: " ";
+        height: 100px;
+        margin-top: -100px;
+        visibility: hidden;
+    }
+
+    #articleContent :focus {
+        outline: none;
+    }
+
+    .toc-fixed {
+        position: fixed;
+        top: 64px;
+    }
+
+    .toc-widget {
+        width: 345px;
+        padding-left: 20px;
+    }
+
+    .toc-widget .toc-title {
+        padding: 35px 0 15px 17px;
+        font-size: 1.5rem;
+        font-weight: bold;
+        line-height: 1.5rem;
+    }
+
+    .toc-widget ol {
+        padding: 0;
+        list-style: none;
+    }
+
+    #toc-content {
+        padding-bottom: 30px;
+        overflow: auto;
+    }
+
+    #toc-content ol {
+        padding-left: 10px;
+    }
+
+    #toc-content ol li {
+        padding-left: 10px;
+    }
+
+    #toc-content .toc-link:hover {
+        color: #42b983;
+        font-weight: 700;
+        text-decoration: underline;
+    }
+
+    #toc-content .toc-link::before {
+        background-color: transparent;
+        max-height: 25px;
+
+        position: absolute;
+        right: 23.5vw;
+        display: block;
+    }
+
+    #toc-content .is-active-link {
+        color: #42b983;
+    }
+
+    #floating-toc-btn {
+        position: fixed;
+        right: 15px;
+        bottom: 76px;
+        padding-top: 15px;
+        margin-bottom: 0;
+        z-index: 998;
+    }
+
+    #floating-toc-btn .btn-floating {
+        width: 48px;
+        height: 48px;
+    }
+
+    #floating-toc-btn .btn-floating i {
+        line-height: 48px;
+        font-size: 1.4rem;
+    }
+</style>
+<div class="row">
+    <div id="main-content" class="col s12 m12 l9">
+        <!-- 文章内容详情 -->
+<div id="artDetail">
+    <div class="card">
+        <div class="card-content article-info">
+            <div class="row tag-cate">
+                <div class="col s7">
+                    
+                    <div class="article-tag">
+                        
+                            <a href="/tags/redo-log/">
+                                <span class="chip bg-color">redo log</span>
+                            </a>
+                        
+                    </div>
+                    
+                </div>
+                <div class="col s5 right-align">
+                    
+                    <div class="post-cate">
+                        <i class="fas fa-bookmark fa-fw icon-category"></i>
+                        
+                            <a href="/categories/MySQL/" class="post-category">
+                                MySQL
+                            </a>
+                        
+                    </div>
+                    
+                </div>
+            </div>
+
+            <div class="post-info">
+                
+                <div class="post-date info-break-policy">
+                    <i class="far fa-calendar-minus fa-fw"></i>发布日期:&nbsp;&nbsp;
+                    2021-11-02
+                </div>
+                
+
+                
+
+                
+
+                
+
+                
+            </div>
+        </div>
+        <hr class="clearfix">
+
+        
+
+        
+
+        <div class="card-content article-card-content">
+            <div id="articleContent">
+                <p>不知道大家是否还记得事务的四大特性，现在我们回忆一下吧，持久性、一致性、隔离性、原子性。没错，我们今天讲的就是持久性。</p>
+<h2 id="一、啥是-redo-log"><a href="#一、啥是-redo-log" class="headerlink" title="一、啥是 redo log"></a>一、啥是 redo log</h2><p>我们想象有这么一个生产环境，就是如果我们只在内存的 Buffer Pool 中修改了页面，事务提交后突然发生了某个故障，导致内存中的数据都失效了，那么这个已经提交了的事务对数据库中所做的更改也就跟着丢失了，这你能忍？反正我是不能忍。🙂🙂🙂 这就是持久性遭到了破坏，那我们如何保证持久性呢? 有同学可能说每次事务提交之前把该事务所修改的所有页面都刷新到磁盘。但是，你有没有想过这样做有问题呢？</p>
+<ul>
+<li><p>刷新一个完整的数据页太浪费了</p>
+<p>  有时候我们仅仅修改了某个页面中的一个字节，但是我们知道在 InnoDB 中是以页为单位来进行磁盘IO 的，也就是说我们在该事务提交时不得不将一个完整的页面从内存中刷新到磁盘，我们又知道一个页面默认是 16KB 大小，只修改一个字节就要刷新 16KB 的数据到磁盘上显然是太浪费了</p>
+</li>
+<li><p>随机 IO 比较慢</p>
+<p>  一个事务可能包含很多条 SQL 语句，而这些语句可能对 Buffer Pool 中不相邻的数据页进行操作。当把该事务修改过的数据页刷新到磁盘时会产生很多随机 IO，我们知道随机 IO 是比顺序 IO 慢的</p>
+</li>
+</ul>
+<p>我们还记得我们的目的是啥吗？不就是想让已经提交了的事务对数据库中数据所做的修改永久生效，即使后来系统崩溃，在重启后也能把这种修改恢复出来。所以我们其实没有必要在每次事务提交时就把该事务在内存中修改过的全部页面刷新到磁盘，只需要把修改了哪些东西记录一下就好。那用什么东东来记录呢，此时我们的 redo log 就登场了。</p>
+<p>redo log 顾名思义，就是重做日志，我们只需要将对数据页做了哪些修改记录到 redo log 就行了，当系统崩溃了，重启之后只要按照 redo log 所记录的步骤重新更新一下数据页，那么该事务对数据库中所做的修改又可以被恢复出来，满足持久性。那为啥用 redo log 呢？</p>
+<ul>
+<li>redo 日志占用的空间非常小<br>  存储表空间ID、页号、偏移量以及需要更新的值所需的存储空间是很小的</li>
+<li>redo 日志是顺序写入磁盘的<br>  在执行事务的过程中，每执行一条语句，就可能产生若干条 redo 日志，这些日志是按照产生的顺序写入磁盘的，也就是使用顺序IO，速度比随机 IO 更快</li>
+</ul>
+<p>讲了啥是 redo log，我们现在看看真实的  redo log 到底长啥样吧</p>
+<h2 id="二、redo-log-格式"><a href="#二、redo-log-格式" class="headerlink" title="二、redo log 格式"></a>二、redo log 格式</h2><p>redo log 的格式：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327105926289.png" alt="image-20220327105926289" style="zoom:80%;" />
+
+<ul>
+<li>type ：该条 redo 日志的类型。</li>
+<li>space ID ：表空间 ID。</li>
+<li>page number ：页号。</li>
+<li>data ：该条 redo 日志的具体内容。  </li>
+</ul>
+<p>这里 redo log 日志的类型比较多，我在这里举两个例子吧：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327105945017.png" alt="image-20220327105945017" style="zoom:80%;" />
+
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327105934724.png" alt="image-20220327105934724" style="zoom:80%;" />
+
+<p>还有比较复杂的 redo log 的类型，我这里就不做详述了，感兴趣的同学可以自行去学习 🤣🤣🤣</p>
+<h2 id="三、Mini-Transaction-的概念"><a href="#三、Mini-Transaction-的概念" class="headerlink" title="三、Mini-Transaction 的概念"></a>三、Mini-Transaction 的概念</h2><p>MySQL 把对底层页面中的一次原子访问的过程称之为一个 Mini-Transaction ，简称 mtr ，比如向某个索引对应的 B+ 树中插入一条记录的过程就是一个 Mini-Transaction 。通过上边的叙述我们也知道，一个所谓的 mtr 可以包含一组 redo 日志，在进行奔溃恢复时这一组 redo 日志作为一个不可分割的整体  </p>
+<p>一个事务可以包含若干条语句，每一条语句其实是由若干个 mtr 组成，每一个 mtr 又可以包含若干条 redo 日志，画个图表示它们的关系就是这样：  </p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327105953604.png" alt="image-20220327105953604" style="zoom:80%;" />
+
+<h2 id="四、redo日志的写入过程"><a href="#四、redo日志的写入过程" class="headerlink" title="四、redo日志的写入过程"></a>四、redo日志的写入过程</h2><h3 id="1、redo日志的写入过程"><a href="#1、redo日志的写入过程" class="headerlink" title="1、redo日志的写入过程"></a>1、redo日志的写入过程</h3><p>redo 日志也是需要存储的啊，所以 MySQL 把它放在了大小为 512 字节的页中，但是我们把用来存储 redo 日志的页称为 block，画一个图来说明更加形象一点：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327110000568.png" alt="image-20220327110000568" style="zoom:80%;" />
+
+<p>真正的 redo 日志都是存储到占用 496 字节大小的 log block body 中，图中的 log block header 和 log block trailer 存储的是一些管理信息，那这些管理信息是啥呢，我们画一个图说明：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327110007444.png" alt="image-20220327110007444" style="zoom:80%;" />
+
+<ul>
+<li><code>LOG_BLOCK_HDR_NO</code> ：每一个 block 都有一个大于 0 的唯一标号，本属性就表示该标号</li>
+<li><code>LOG_BLOCK_HDR_DATA_LEN</code> ：表示 block 中已经使用了多少字节，初始值为 12 （因为 log block body 从第12个字节处开始）。随着往 block 中写入的 redo 日志越来也多，本属性值也跟着增长。如果 log block body 已经被全部写满，那么本属性的值被设置为 512 </li>
+<li><code>LOG_BLOCK_FIRST_REC_GROUP</code> ：一条 redo 日志也可以称之为一条 redo 日志记录（ redo log record ），一个 mtr 会生产多条 redo 日志记录，这些 redo 日志记录被称之为一个 redo 日志记录组（ redo logrecord group ）。 <code>LOG_BLOCK_FIRST_REC_GROUP</code> 就代表该 block 中第一个 mtr 生成的 redo 日志记录组的偏移量（其实也就是这个 block 里第一个 mtr 生成的第一条 redo 日志的偏移量）</li>
+<li><code>LOG_BLOCK_CHECKPOINT_NO</code> ：表示所谓的 checkpoint 的序号</li>
+<li><code>LOG_BLOCK_CHECKSUM</code> ：表示 block 的校验值，用于正确性校验</li>
+</ul>
+<h3 id="2、redo日志缓冲区"><a href="#2、redo日志缓冲区" class="headerlink" title="2、redo日志缓冲区"></a>2、redo日志缓冲区</h3><p>为了解决磁盘速度过慢的问题而引入了 Buffer Pool 。同理，写入 redo 日志时也不能直接直接写到磁盘上，实际上在服务器启动时就向操作系统申请了一大片称之为 redo log buffer 的连续内存空间，也叫 redo日志缓冲区 ，简称为 log buffer 。这片内存空间被划分成若干个连续的 redo log block ，如图：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327110016392.png" alt="image-20220327110016392" style="zoom:80%;" />
+
+<blockquote>
+<p>小贴士：我们可以通过启动参数 <code>innodb_log_buffer_size</code> 来指定 log buffer 的大小，在 MySQL 5.7.21 这个版本中，该启动参数的默认值为 16MB 。  </p>
+</blockquote>
+<h3 id="3、redo日志写入log-buffer"><a href="#3、redo日志写入log-buffer" class="headerlink" title="3、redo日志写入log buffer"></a>3、redo日志写入log buffer</h3><p>向 log buffer 中写入 redo 日志的过程是顺序的，也就是先往前边的block中写，当该block的空闲空间用完之后再往下一个block中写。当我们想往 log buffer 中写入 redo 日志时，第一个遇到的问题就是应该写在哪个 block 的哪个偏移量处，因此 MySQL 提供了一个称之为 buf_free 的全局变量，该变量指明后续写入的 redo 日志应该写入到 log buffer 中的哪个位置，如图所示：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327110025528.png" alt="image-20220327110025528" style="zoom:80%;" />
+
+<p>我们前边说过一个 mtr 执行过程中可能产生若干条 redo 日志，这些 redo 日志是一个不可分割的组，所以其实并不是每生成一条 redo 日志，就将其插入到 log buffer 中，而是每个 mtr 运行过程中产生的日志先暂时存到一个地方，当该 mtr 结束的时候，将过程中产生的一组 redo 日志再全部复制到 log buffer 中。我们现在假设有两个名为 T1 、 T2 的事务，每个事务都包含2个 mtr ，我们给这几个 mtr 命名一下：  </p>
+<ul>
+<li>事务 T1 的两个 mtr 分别称为 mtr_T1_1 和 mtr_T1_2 。</li>
+<li>事务 T2 的两个 mtr 分别称为 mtr_T2_1 和 mtr_T2_2 。  </li>
+</ul>
+<p>如图所示：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327110037652.png" alt="image-20220327110037652" style="zoom:80%;" />
+
+<p>不同的事务可能是并发执行的，所以 T1 、T2 之间的 mtr 可能是交替执行的。每当一个 mtr 执行完成时，伴随该 mtr 生成的一组 redo 日志就需要被复制到 log buffer 中，也就是说不同事务的 mtr 可能是交替写入 log buffer 的，我们画个示意图：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327110045338.png" alt="image-20220327110045338" style="zoom:80%;" />
+
+<p>从示意图中我们可以看出来，不同的 mtr 产生的一组 redo 日志占用的存储空间可能不一样，有的 mtr 产生的 redo 日志量很少，比如 mtr_t1_1 、 mtr_t2_1 就被放到同一个block中存储，有的 mtr 产生的 redo 日志量非常大，比如 mtr_t1_2 产生的 redo 日志甚至占用了 3 个 block 来存储</p>
+<h2 id="五、redo日志文件"><a href="#五、redo日志文件" class="headerlink" title="五、redo日志文件"></a>五、redo日志文件</h2><h3 id="1、redo日志刷盘时机"><a href="#1、redo日志刷盘时机" class="headerlink" title="1、redo日志刷盘时机"></a>1、redo日志刷盘时机</h3><p>mtr 运行过程中产生的一组 redo 日志在 mtr 结束时会被复制到 log buffer 中，既然在 log buffer 中，我们就需要在一定时机把它们刷新到磁盘里，比如：  </p>
+<ul>
+<li><p>log buffer 空间不足时<br>  log buffer 的大小是有限的，如果不停的往这个有限大小的 log buffer 里塞入日志，很快它就会被填满。MySQL 认为如果当前写入 log buffer 的 redo 日志量已经占满了 log buffer 总容量的大约一半左右，就需要把这些日志刷新到磁盘上。  </p>
+<blockquote>
+<p>小贴士：log buffer 的大小通过系统变量 <code>innodb_log_buffer_size</code> 指定</p>
+</blockquote>
+</li>
+<li><p>事务提交时<br>  我们前边说过之所以使用 redo 日志主要是因为它占用的空间少，还是顺序写，在事务提交时可以不把修改过的 Buffer Pool 页面刷新到磁盘，但是为了保证持久性，必须要把修改这些页面对应的 redo 日志刷新到磁盘。  </p>
+</li>
+<li><p>后台线程不停的刷<br>  后台有一个线程，大约每秒都会刷新一次 log buffer 中的 redo 日志到磁盘。</p>
+</li>
+<li><p>正常关闭服务器时</p>
+</li>
+<li><p>做所谓的 checkpoint 时</p>
+</li>
+</ul>
+<h3 id="2、redo日志文件组"><a href="#2、redo日志文件组" class="headerlink" title="2、redo日志文件组"></a>2、redo日志文件组</h3><p>MySQL 的数据目录（使用 SHOW VARIABLES LIKE ‘datadir’ 查看）下默认有两个名为 <code>ib_logfile0</code> 和<br><code>ib_logfile1</code> 的文件， log buffer 中的日志默认情况下就是刷新到这两个磁盘文件中。如果我们对默认的<br>redo 日志文件不满意，可以通过下边几个启动参数来调节：</p>
+<ul>
+<li><code>innodb_log_group_home_dir</code><br>  该参数指定了 redo 日志文件所在的目录，默认值就是当前的数据目录。</li>
+<li><code>innodb_log_file_size</code><br>  该参数指定了每个 redo 日志文件的大小，在 MySQL 5.7.21 这个版本中的默认值为 48MB ，</li>
+<li><code>innodb_log_files_in_group</code><br>  该参数指定 redo 日志文件的个数，默认值为2，最大值为100。  </li>
+</ul>
+<p>从上边的描述中可以看到，磁盘上的 redo 日志文件不只一个，而是以一个 日志文件组 的形式出现的。这些文件以 ib_logfile[数字] （ 数字 可以是 0 、 1 、 2 …）的形式进行命名。在将 redo 日志写入 日志文件组 时，是从 ib_logfile0 开始写，如果 ib_logfile0 写满了，就接着 ib_logfile1 写，同理， ib_logfile1 写满了就去写 ib_logfile2 ，依此类推。如果写到最后一个文件该咋办？那就重新转到 ib_logfile0 继续写，所以整个过程如下图所示：  </p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327110057520.png" alt="image-20220327110057520" style="zoom:80%;" />
+
+<p>总共的 redo 日志文件大小其实就是： <code>innodb_log_file_size</code> × <code>innodb_log_files_in_group</code> 。</p>
+<blockquote>
+<p>小贴士：如果采用循环使用的方式向redo日志文件组里写数据的话，那岂不是要追尾，也就是后写入的 redo 日志覆盖掉前边写的 redo日志 ？当然可能了！InnoDB 提出了 checkpoint 的概念</p>
+</blockquote>
+<h3 id="3、redo日志文件格式"><a href="#3、redo日志文件格式" class="headerlink" title="3、redo日志文件格式"></a>3、redo日志文件格式</h3><p>redo 日志文件由若干个 512 字节大小的 block 组成。redo 日志文件组中的每个文件大小都一样，格式也一样，都是由两部分组成：   </p>
+<ul>
+<li>前 2048 个字节，也就是前 4 个 block 是用来存储一些管理信息的。</li>
+<li>从第 2048 字节往后是用来存储 log buffer 中的 block 镜像的。  </li>
+</ul>
+<p>我们还是画一个图进行说明吧：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327110104652.png" alt="image-20220327110104652" style="zoom:80%;" />
+
+<p>从图中可以看出所说的循环使用 redo 日志文件，其实是从每个日志文件的第 2048 个字节开始算  </p>
+<p>那这前4个 block 存的都是啥管理信息呢？让我们来揭开它神秘的面纱 😄😄😄</p>
+<p>还是直接上图吧：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327110117628.png" alt="image-20220327110117628" style="zoom:80%;" />
+
+<p>log file header ：描述该 redo 日志文件的一些整体属性，看一下它的结构：  </p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327110124625.png" alt="image-20220327110124625" style="zoom:80%;" />
+
+<ul>
+<li><code>LOG_HEADER_FORMAT</code>（0，4字节）：redo 日志的版本，在 MySQL5.7.21 中该值永远为 1  </li>
+<li><code>LOG_HEADER_PAD1</code>（4，4字节）：做字节填充用的，没什么实际意义  </li>
+<li><code>LOG_HEADER_START_LSN</code>（8，8字节）：标记本 redo 日志文件开始的 LSN 值，也就是文件偏移量为 2048 字节初对应的 LSN 值  </li>
+<li><code>LOG_HEADER_CREATOR</code>（16，32字节）：一个字符串，标记本 redo 日志文件的创建者是谁。正常运行时该值为 MySQL 的版本号，比如： “MySQL 5.7.21” ，使用 mysqlbackup 命令创建的 redo 日志文件的该值为 “ibbackup” 和创建时间  </li>
+<li><code>LOG_BLOCK_CHECKSUM</code>  （508，4字节）：本 block 的校验值  </li>
+</ul>
+<p>checkpoint1 ：记录关于 checkpoint 的一些属性，如上图：</p>
+<ul>
+<li><code>LOG_CHECKPOINT_NO</code>（0，8字节）：服务器做 checkpoint 的编号，每做一次 checkpoint ，该值就加 1  </li>
+<li><code>LOG_CHECKPOINT_LSN</code>（8，8字节）：服务器做 checkpoint 结束时对应的 LSN 值，系统奔溃恢复时将从该值开始  </li>
+<li><code>LOG_CHECKPOINT_OFFSET</code>（16，8字节）：上个属性中的 LSN 值在 redo 日志文件组中的偏移量  </li>
+<li><code>LOG_CHECKPOINT_LOG_BUF_SIZE</code>（24，8字节）：|服务器在做 checkpoint 操作时对应的 log buffer 的大小  </li>
+<li><code>LOG_BLOCK_CHECKSUM</code>：本block的校验值  </li>
+</ul>
+<h3 id="4、Log-Sequeue-Number"><a href="#4、Log-Sequeue-Number" class="headerlink" title="4、Log Sequeue Number"></a>4、Log Sequeue Number</h3><p>Log Sequeue Number 是一个全局变量 ， 也叫做日志序列号，用来记录已经写入的 redo 日志量，初始值是 8704  </p>
+<p>我们知道在向 log buffer 中写入 redo 日志时不是一条一条写入的，而是以一个 mtr 生成的一组 redo 日志为单位进行写入的。而且实际上是把日志内容写在了 log block body 处。但是在统计 lsn 的增长量时，是按照实际写入的日志量加上占用的 log block header 和 log block trailer 来计算的。我们来看一个例子：  </p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327110134417.png" alt="image-20220327110134417" style="zoom:80%;" />
+
+<p>每一组由 mtr 生成的redo日志都有一个唯一的 LSN值 与其对应，LSN值 越小，说明 redo日志 产生的越早</p>
+<h3 id="5、flushed-to-disk-lsn"><a href="#5、flushed-to-disk-lsn" class="headerlink" title="5、flushed_to_disk_lsn"></a>5、flushed_to_disk_lsn</h3><p>redo 日志是首先写到 log buffer 中，之后才会被刷新到磁盘上的 redo 日志文件。所以 InnoDB 提出了一个称之为 buf_next_to_write 的全局变量，标记当前 log buffer 中已经有哪些日志被刷新到磁盘中了。画个图表示就是这样：  </p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327110141439.png" alt="image-20220327110141439" style="zoom:80%;" />
+
+<p><code>lsn</code> 是表示当前系统中写入的 redo 日志量，这包括了写到 log buffer 而没有刷新到磁盘的日志  </p>
+<p><code>flushed_to_disk_lsn</code> 表示刷新到磁盘中的 redo 日志量的全局变量，该变量的值和初始的 lsn 值是相同的，都是 8704 。随着系统的运行， redo 日志被不断写入 log buffer ，但是并不会立即刷新到磁盘， lsn 的值就和 flushed_to_disk_lsn 的值拉开了差距，画一个图看看吧：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327110148303.png" alt="image-20220327110148303" style="zoom:80%;" />
+
+<p>小总结：有新的 redo 日志写入到 log buffer 时，首先 lsn 的值会增长，但 <code>flushed_to_disk_lsn</code> 不变，<br>随后随着不断有 log buffer 中的日志被刷新到磁盘上， <code>flushed_to_disk_lsn</code> 的值也跟着增长。如果两者的值相同时，说明 log buffer 中的所有 redo日志 都已经刷新到磁盘中了  </p>
+<h3 id="6、lsn值和redo日志文件偏移量的对应关系"><a href="#6、lsn值和redo日志文件偏移量的对应关系" class="headerlink" title="6、lsn值和redo日志文件偏移量的对应关系"></a>6、lsn值和redo日志文件偏移量的对应关系</h3><p>因为 lsn 的值是代表系统写入的 redo 日志量的一个总和，一个 mtr 中产生多少日志， lsn 的值就增加多少（当然有时候要加上 log block header 和 log block trailer 的大小），这样 mtr 产生的日志写到磁盘中时，很容易计算某一个 lsn 值在 redo 日志文件组中的偏移量，如图：  </p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327110155403.png" alt="image-20220327110155403" style="zoom:80%;" />
+
+<p>初始时的 LSN 值是 8704 ，对应文件偏移量 2048 ，之后每个 mtr 向磁盘中写入多少字节日志， lsn 的值就增长多少。  </p>
+<h3 id="7、flush链表中的LSN"><a href="#7、flush链表中的LSN" class="headerlink" title="7、flush链表中的LSN"></a>7、flush链表中的LSN</h3><p>我们要把在 mtr 执行过程中可能修改过的页面加入到 Buffer Pool 的 flush 链表中  </p>
+<p>当第一次修改某个缓存在 Buffer Pool 中的页面时，就会把这个页面对应的控制块插入到 flush链表 的头部，之后再修改该页面时由于它已经在 flush 链表中了，就不再次插入了。也就是说 flush 链表中的脏页是按照页面的第一次修改时间从大到小进行排序的。在这个过程中会在缓存页对应的控制块中记录两个关于页面何时修改的属性：</p>
+<ul>
+<li><code>oldest_modification</code> ：如果某个页面被加载到 Buffer Pool 后进行第一次修改，那么就将修改该页面的 mtr 开始时对应的 lsn 值写入这个属性。</li>
+<li><code>newest_modification</code> ：每修改一次页面，都会将修改该页面的 mtr 结束时对应的 lsn 值写入这个属性。也就是说该属性表示页面最近一次修改后对应的系统 lsn 值。   </li>
+</ul>
+<p>我们画一个图康康吧：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327110202756.png" alt="image-20220327110202756" style="zoom:80%;" />
+
+<p>flush 链表中的脏页按照修改发生的时间顺序进行排序，也就是按照 <code>oldest_modification</code> 代表的 LSN 值进行排序，被多次更新的页面不会重复插入到 flush 链表中，但是会更新 <code>newest_modification</code> 属性的值  </p>
+<h2 id="六、checkpoint"><a href="#六、checkpoint" class="headerlink" title="六、checkpoint"></a>六、checkpoint</h2><p>我们的 redo 日志文件组容量是有限的，我们不得不选择循环使用 redo 日志文件组中的文件，但是这会造成最后写的 redo 日志与最开始写的 redo 日志 追尾 ，这时应该想到：redo日志只是为了系统奔溃后恢复脏页用的，如果对应的脏页已经刷新到了磁盘，也就是说即使现在系统奔溃，那么在重启后也用不着使用 redo 日志恢复该页面了，所以该 redo 日志也就没有存在的必要了，那么它占用的磁盘空间就可以被后续的<br>redo 日志所重用。也就是说：判断某些 redo 日志占用的磁盘空间是否可以覆盖的依据就是它对应的脏页是否已经刷新到磁盘里  </p>
+<p>假如一个 mtr 对应的页都被刷到了磁盘，那么它们对应的控制块就会从 flush链表 中移除。这样 mtr 生成的 redo 日志就没有用了，它们占用的磁盘空间就可以被覆盖掉了。InnoDB 提出了一个全局变量<code>checkpoint_lsn</code> 来代表当前系统中可以被覆盖的 redo 日志总量是多少，这个变量初始值也是 8704 </p>
+<p>比方说现在 一些页 被刷新到了磁盘， 其对应 mtr 生成的 redo 日志就可以被覆盖了，所以我们可以进行一个增加<code>checkpoint_lsn</code> 的操作，我们把这个过程称之为做一次 checkpoint 。做一次 checkpoint 其实可以分为两个步骤：    </p>
+<ul>
+<li><p>步骤一：计算一下当前系统中可以被覆盖的 redo 日志对应的 lsn 值最大是多少。 </p>
+<p>  redo 日志可以被覆盖，意味着它对应的脏页被刷到了磁盘，只要我们计算出当前系统中被最早修改的脏页对应的 <code>oldest_modification</code> 值，那凡是在系统 lsn 值小于该节点的 <code>oldest_modification</code> 值时产生的 redo日志 都是可以被覆盖掉的，我们就把该脏页的 <code>oldest_modification</code> 赋值给 <code>checkpoint_lsn</code> </p>
+</li>
+<li><p>步骤二：将 checkpoint_lsn 和对应的 redo 日志文件组偏移量以及此次 checkpint 的编号写到日志文件的管理信息（就是 checkpoint1 或者 checkpoint2 ）中。  </p>
+<p>  InnoDB 维护了一个目前系统做了多少次 checkpoint 的变量 <code>checkpoint_no</code> ，每做一次 checkpoint，该变量的值就加1。可以计算得到该 <code>checkpoint_lsn</code> 在 redo 日志文件组中对应的偏移量 <code>checkpoint_offset</code> ，然后把这三个值都写到 reo 日志文件组的管理信息中。我们说过，每一个 redo 日志文件都有 2048 个字节的管理信息，但是上述关于checkpoint的信息只会被写到日志文件组的第一个日志文件的管理信息中。不过我们是存储到 checkpoint1 中还是 checkpoint2 中呢？InnoDB 规定，当 <code>checkpoint_no</code> 的值是偶数时，就写到 checkpoint1 中，是奇数时，就写到checkpoint2 中。  </p>
+</li>
+</ul>
+<p>我们还是画一个图吧：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327110211235.png" alt="image-20220327110211235" style="zoom:80%;" />
+
+<p>其中 mtr_1 所修改的页面全部都刷入磁盘，所以它对应的 redo日志 可以被覆盖，mtr_2 所修改的页面还在 Buffer Pool 中，不能被覆盖，但是 mtr_2 对应的日志已经存储在磁盘中了</p>
+<p><strong>刷脏页：</strong></p>
+<p>我们在介绍 Buffer Pool 的时候说过，一般情况下都是后台的线程在对 LRU链表 和 flush链表 进行刷脏操作，这主要因为刷脏操作比较慢，不想影响用户线程处理请求。但是如果当前系统修改页面的操作十分频繁，这样就导致写日志操作十分频繁，系统 lsn 值增长过快。如果后台的刷脏操作不能将脏页刷出，那么系统无法及时做 checkpoint ，可能就需要用户线程同步的从 flush链表 中把那些最早修改的脏页（ <code>oldest_modification</code> 最小的脏页）刷新到磁盘，这样这些脏页对应的 redo 日志就没用了，然后就可以去做 checkpoint 了。</p>
+<p><strong>查看系统中的各种LSN值：</strong></p>
+<p>我们可以使用 SHOW ENGINE INNODB STATUS 命令查看当前 InnoDB 存储引擎中的各种 LSN 值的情况，比如：  </p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> ENGINE INNODB STATUS\G</span><br><span class="line"></span><br><span class="line">Log sequence number <span class="number">124476971</span>  # 代表系统中的 lsn 值，也就是当前系统已经写入的 redo 日志量，包括写入 log buffer 中的日志</span><br><span class="line">buffer 中的日志</span><br><span class="line">Log flushed up <span class="keyword">to</span> <span class="number">124099769</span>  # 代表 flushed_to_disk_lsn 的值，也就是当前系统已经写入磁盘的 redo 日志量</span><br><span class="line">Pages flushed up <span class="keyword">to</span> <span class="number">124052503</span>  # 代表 flush链表 中被最早修改的那个页面对应的 oldest_modification 属性值</span><br><span class="line"><span class="keyword">Last</span> checkpoint <span class="keyword">at</span> <span class="number">124052494</span>  #当前系统的 checkpoint_lsn 值</span><br></pre></td></tr></table></figure>
+
+<p><strong>innodb_flush_log_at_trx_commit 的用法：</strong></p>
+<p>为了保证事务的 持久性 ，用户线程在事务提交时需要将该事务执行过程中产生的所有 redo 日志都刷新到磁盘上。这一条要求太狠了，会很明显的降低数据库性能。如果有的同学对事务的持久性要求不是那么强<br>烈的话，可以选择修改一个称为 <code>innodb_flush_log_at_trx_commit</code> 的系统变量的值，该变量有3个可选的值：</p>
+<ul>
+<li>0 ：当该系统变量值为0时，表示在事务提交时不立即向磁盘中同步 redo 日志，这个任务是交给后台线程做的。这样很明显会加快请求处理速度，但是如果事务提交后服务器挂了，后台线程没有及时将 redo 日志刷新到磁盘，那么该事务对页面的修改会丢失。</li>
+<li>1 ：当该系统变量值为1时，表示在事务提交时需要将 redo 日志同步到磁盘，可以保证事务的持久性。 1 也是 <code>innodb_flush_log_at_trx_commit</code> 的默认值。</li>
+<li>2 ：当该系统变量值为2时，表示在事务提交时需要将 redo 日志写到操作系统的缓冲区中，但并不需要保证将日志真正的刷新到磁盘。这种情况下如果数据库挂了，操作系统没挂的话，事务的持久性还是可以保证的，但是操作系统也挂了的话，那就不能保证持久性了。  </li>
+</ul>
+<h2 id="七、崩溃恢复"><a href="#七、崩溃恢复" class="headerlink" title="七、崩溃恢复"></a>七、崩溃恢复</h2><h3 id="1、确定恢复的起点"><a href="#1、确定恢复的起点" class="headerlink" title="1、确定恢复的起点"></a>1、确定恢复的起点</h3><p>我们前边说过， <code>checkpoint_lsn</code> 之前的 redo 日志都可以被覆盖，也就是说这些 redo 日志对应的脏页都已经被刷新到磁盘中了，既然它们已经被刷盘，我们就没必要恢复它们了。对于 <code>checkpoint_lsn</code> 之后的 redo 日志，它们对应的脏页可能没被刷盘，也可能被刷盘了，我们不能确定，所以需要从 checkpoint_lsn 开始读取 redo 日志来恢复页面。当然， redo 日志文件组的第一个文件的管理信息中有两个 block 都存储了 <code>checkpoint_lsn</code> 的信息，我们当然是要选取最近发生的那次 checkpoint 的信息。衡量 checkpoint 发生时间早晚的信息就是所谓的 <code>checkpoint_no</code> ，我们只要把 checkpoint1 和 checkpoint2 这两个block中的 <code>checkpoint_no</code> 值读出来比一下大小，哪个的 <code>checkpoint_no</code> 值更大，说明哪个 block 存储的就是最近的一次 checkpoint 信息。这样我们就能拿到最近发生的 checkpoint 对应的 <code>checkpoint_lsn</code> 值以及它在 redo 日志文件组中的偏移量 <code>checkpoint_offset</code>  </p>
+<h3 id="2、确定恢复的终点"><a href="#2、确定恢复的终点" class="headerlink" title="2、确定恢复的终点"></a>2、确定恢复的终点</h3><p>redo 日志恢复的起点确定了，那终点是哪个呢？这个还得从block的结构说起。我们说在写 redo 日志的时候都是顺序写的，写满了一个block之后会再往下一个block中写：  </p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327110218386.png" alt="image-20220327110218386" style="zoom:80%;" />
+
+<p>普通 block 的 log block header 部分有一个称之为 <code>LOG_BLOCK_HDR_DATA_LEN</code> 的属性，该属性值记录了当前 block 里使用了多少字节的空间。对于被填满的block来说，该值永远为 512 。如果该属性的值不为 512 ，那么就是它了，它就是此次奔溃恢复中需要扫描的最后一个block。  </p>
+<h3 id="3、怎么恢复"><a href="#3、怎么恢复" class="headerlink" title="3、怎么恢复"></a>3、怎么恢复</h3><p>那肯定是根据 redo 日志恢复了，如图：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327110218386.png" style="zoom:80%;" />
+
+<p>由于 redo 0 在 checkpoint_lsn 后边，恢时可以不管它。我们现在可以按照 redo 日志的顺序依次扫描<br>checkpoint_lsn 之后的各条 redo日志，按照日志中记载的内容将对应的页面恢复出来。这样没什么问题，不过 InnoDB 还是想了一些办法加快这个恢复的过程：  </p>
+<p><strong>那就是使用 哈希表</strong> 😄😄😄</p>
+<p>根据 redo 日志的 space ID 和 page number 属性计算出散列值，把 space ID 和 page number 相同的 redo日志 放到哈希表的同一个槽里，如果有多个 space ID 和 page number 都相同的 redo 日志，那么它们之间使用链表连接起来，按照生成的先后顺序链接起来的，如图所示：  </p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327110244362.png" alt="image-20220327110244362" style="zoom:80%;" />
+
+<p>之后就可以遍历哈希表，因为对同一个页面进行修改的 redo 日志都放在了一个槽里，所以可以一次性将一<br>个页面修复好（避免了很多读取页面的随机IO），这样可以加快恢复速度。另外需要注意一点的是，同一个<br>页面的 redo 日志是按照生成时间顺序进行排序的，所以恢复的时候也是按照这个顺序进行恢复，如果不按<br>照生成时间顺序进行排序的话，那么可能出现错误。比如原先的修改操作是先插入一条记录，再删除该条记<br>录，如果恢复时不按照这个顺序来，就可能变成先删除一条记录，再插入一条记录，这显然是错误的。  </p>
+<p><strong>跳过已经刷新到磁盘的页面</strong><br>我们前边说过， <code>checkpoint_lsn</code> 之前的 redo 日志对应的脏页确定都已经刷到磁盘了，但是 <code>checkpoint_lsn</code> 之后的 redo 日志我们不能确定是否已经刷到磁盘，主要是因为在最近做的一次 checkpoint 后，可能后台线程又不断的从 LRU链表 和 flush链表 中将一些脏页刷出 Buffer Pool 。这些在 <code>checkpoint_lsn</code> 之后的 redo 日志，如果它们对应的脏页在奔溃发生时已经刷新到磁盘，那在恢复时也就没有必要根据 redo 日志的内容修改该页面了。  </p>
+<p>那在恢复时怎么知道某个 redo 日志对应的脏页是否在奔溃发生时已经刷新到磁盘了呢？这还得从页面的结<br>构说起，我们前边说过每个页面都有一个称之为 File Header 的部分，在 File Header 里有一个称之为<br><code>FIL_PAGE_LSN</code> 的属性，该属性记载了最近一次修改页面时对应的 lsn 值（其实就是页面控制块中的<br><code>newest_modification</code> 值）。如果在做了某次 checkpoint 之后有脏页被刷新到磁盘中，那么该页对应的<br><code>FIL_PAGE_LSN</code> 代表的 lsn 值肯定大于 <code>checkpoint_lsn</code> 的值，凡是符合这种情况的页面就不需要重复执行<br>lsn 值小于 <code>FIL_PAGE_LSN</code> 的 redo日志 了，所以更进一步提升了奔溃恢复的速度。 </p>
+<p>好了，到这里我们 redo 日志终于讲完了，内容还是比较多的，希望大家都慢慢消化吧，我们下期见 😇😇😇</p>
+<blockquote>
+<p><a target="_blank" rel="noopener" href="https://juejin.cn/book/6844733769996304392">https://juejin.cn/book/6844733769996304392</a></p>
+</blockquote>
+
+                
+            </div>
+            <hr/>
+
+            
+
+    <div class="reprint" id="reprint-statement">
+        
+            <div class="reprint__author">
+                <span class="reprint-meta" style="font-weight: bold;">
+                    <i class="fas fa-user">
+                        文章作者:
+                    </i>
+                </span>
+                <span class="reprint-info">
+                    <a href="/about" rel="external nofollow noreferrer">Skyu</a>
+                </span>
+            </div>
+            <div class="reprint__type">
+                <span class="reprint-meta" style="font-weight: bold;">
+                    <i class="fas fa-link">
+                        文章链接:
+                    </i>
+                </span>
+                <span class="reprint-info">
+                    <a href="https://kuangtianyu.github.io/2021/11/02/MySQL/%E5%90%8A%E6%89%93%E9%9D%A2%E8%AF%95%E5%AE%98%E4%B9%8Bredo%E8%AF%A6%E8%A7%A3/">https://kuangtianyu.github.io/2021/11/02/MySQL/%E5%90%8A%E6%89%93%E9%9D%A2%E8%AF%95%E5%AE%98%E4%B9%8Bredo%E8%AF%A6%E8%A7%A3/</a>
+                </span>
+            </div>
+            <div class="reprint__notice">
+                <span class="reprint-meta" style="font-weight: bold;">
+                    <i class="fas fa-copyright">
+                        版权声明:
+                    </i>
+                </span>
+                <span class="reprint-info">
+                    本博客所有文章除特別声明外，均采用
+                    <a href="https://creativecommons.org/licenses/by/4.0/deed.zh" rel="external nofollow noreferrer" target="_blank">CC BY 4.0</a>
+                    许可协议。转载请注明来源
+                    <a href="/about" target="_blank">Skyu</a>
+                    !
+                </span>
+            </div>
+        
+    </div>
+
+    <script async defer>
+      document.addEventListener("copy", function (e) {
+        let toastHTML = '<span>复制成功，请遵循本文的转载规则</span><button class="btn-flat toast-action" onclick="navToReprintStatement()" style="font-size: smaller">查看</a>';
+        M.toast({html: toastHTML})
+      });
+
+      function navToReprintStatement() {
+        $("html, body").animate({scrollTop: $("#reprint-statement").offset().top - 80}, 800);
+      }
+    </script>
+
+
+
+            <div class="tag_share" style="display: block;">
+                <div class="post-meta__tag-list" style="display: inline-block;">
+                    
+                        <div class="article-tag">
+                            
+                                <a href="/tags/redo-log/">
+                                    <span class="chip bg-color">redo log</span>
+                                </a>
+                            
+                        </div>
+                    
+                </div>
+                <div class="post_share" style="zoom: 80%; width: fit-content; display: inline-block; float: right; margin: -0.15rem 0;">
+                    <link rel="stylesheet" type="text/css" href="/libs/share/css/share.min.css">
+<div id="article-share">
+
+    
+    <div class="social-share" data-sites="twitter,facebook,google,qq,qzone,wechat,weibo,douban,linkedin" data-wechat-qrcode-helper="<p>微信扫一扫即可分享！</p>"></div>
+    <script src="/libs/share/js/social-share.min.js"></script>
+    
+
+    
+
+</div>
+
+                </div>
+            </div>
+            
+                <style>
+    #reward {
+        margin: 40px 0;
+        text-align: center;
+    }
+
+    #reward .reward-link {
+        font-size: 1.4rem;
+        line-height: 38px;
+    }
+
+    #reward .btn-floating:hover {
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2), 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    #rewardModal {
+        width: 320px;
+        height: 350px;
+    }
+
+    #rewardModal .reward-title {
+        margin: 15px auto;
+        padding-bottom: 5px;
+    }
+
+    #rewardModal .modal-content {
+        padding: 10px;
+    }
+
+    #rewardModal .close {
+        position: absolute;
+        right: 15px;
+        top: 15px;
+        color: rgba(0, 0, 0, 0.5);
+        font-size: 1.3rem;
+        line-height: 20px;
+        cursor: pointer;
+    }
+
+    #rewardModal .close:hover {
+        color: #ef5350;
+        transform: scale(1.3);
+        -moz-transform:scale(1.3);
+        -webkit-transform:scale(1.3);
+        -o-transform:scale(1.3);
+    }
+
+    #rewardModal .reward-tabs {
+        margin: 0 auto;
+        width: 210px;
+    }
+
+    .reward-tabs .tabs {
+        height: 38px;
+        margin: 10px auto;
+        padding-left: 0;
+    }
+
+    .reward-content ul {
+        padding-left: 0 !important;
+    }
+
+    .reward-tabs .tabs .tab {
+        height: 38px;
+        line-height: 38px;
+    }
+
+    .reward-tabs .tab a {
+        color: #fff;
+        background-color: #ccc;
+    }
+
+    .reward-tabs .tab a:hover {
+        background-color: #ccc;
+        color: #fff;
+    }
+
+    .reward-tabs .wechat-tab .active {
+        color: #fff !important;
+        background-color: #22AB38 !important;
+    }
+
+    .reward-tabs .alipay-tab .active {
+        color: #fff !important;
+        background-color: #019FE8 !important;
+    }
+
+    .reward-tabs .reward-img {
+        width: 210px;
+        height: 210px;
+    }
+</style>
+
+<div id="reward">
+    <a href="#rewardModal" class="reward-link modal-trigger btn-floating btn-medium waves-effect waves-light red">赏</a>
+
+    <!-- Modal Structure -->
+    <div id="rewardModal" class="modal">
+        <div class="modal-content">
+            <a class="close modal-close"><i class="fas fa-times"></i></a>
+            <h4 class="reward-title">你的赏识是我前进的动力</h4>
+            <div class="reward-content">
+                <div class="reward-tabs">
+                    <ul class="tabs row">
+                        <li class="tab col s6 alipay-tab waves-effect waves-light"><a href="#alipay">支付宝</a></li>
+                        <li class="tab col s6 wechat-tab waves-effect waves-light"><a href="#wechat">微 信</a></li>
+                    </ul>
+                    <div id="alipay">
+                        <img src="/medias/reward/alipay.jpg" class="reward-img" alt="支付宝打赏二维码">
+                    </div>
+                    <div id="wechat">
+                        <img src="/medias/reward/wechat.png" class="reward-img" alt="微信打赏二维码">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(function () {
+        $('.tabs').tabs();
+    });
+</script>
+
+            
+        </div>
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+<article id="prenext-posts" class="prev-next articles">
+    <div class="row article-row">
+        
+        <div class="article col s12 m6" data-aos="fade-up">
+            <div class="article-badge left-badge text-color">
+                <i class="fas fa-chevron-left"></i>&nbsp;上一篇</div>
+            <div class="card">
+                <a href="/2021/11/04/MySQL/%E5%86%B0%E5%86%B0%E8%A6%81%E6%88%91%E6%95%99%E5%A5%B9-undo-log%EF%BC%8C%E6%80%8E%E4%B9%88%E5%8A%9E/">
+                    <div class="card-image">
+                        
+                        
+                        <img src="/medias/featureimages/0.jpg" class="responsive-img" alt="冰冰要我教她 undo log，怎么办">
+                        
+                        <span class="card-title">冰冰要我教她 undo log，怎么办</span>
+                    </div>
+                </a>
+                <div class="card-content article-content">
+                    <div class="summary block-with-text">
+                        
+                            
+                        
+                    </div>
+                    <div class="publish-info">
+                        <span class="publish-date">
+                            <i class="far fa-clock fa-fw icon-date"></i>2021-11-04
+                        </span>
+                        <span class="publish-author">
+                            
+                            <i class="fas fa-bookmark fa-fw icon-category"></i>
+                            
+                            <a href="/categories/MySQL/" class="post-category">
+                                    MySQL
+                                </a>
+                            
+                            
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="card-action article-tags">
+                    
+                    <a href="/tags/undo-log/">
+                        <span class="chip bg-color">undo log</span>
+                    </a>
+                    
+                </div>
+                
+            </div>
+        </div>
+        
+        
+        <div class="article col s12 m6" data-aos="fade-up">
+            <div class="article-badge right-badge text-color">
+                下一篇&nbsp;<i class="fas fa-chevron-right"></i>
+            </div>
+            <div class="card">
+                <a href="/2021/11/02/Java-%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/%E5%90%8A%E6%89%93%E9%9D%A2%E8%AF%95%E5%AE%98%E4%B9%8B-Hashtable-%E8%AF%A6%E8%A7%A3/">
+                    <div class="card-image">
+                        
+                        
+                        <img src="/medias/featureimages/18.jpg" class="responsive-img" alt="吊打面试官之 Hashtable 详解">
+                        
+                        <span class="card-title">吊打面试官之 Hashtable 详解</span>
+                    </div>
+                </a>
+                <div class="card-content article-content">
+                    <div class="summary block-with-text">
+                        
+                            
+                        
+                    </div>
+                    <div class="publish-info">
+                            <span class="publish-date">
+                                <i class="far fa-clock fa-fw icon-date"></i>2021-11-02
+                            </span>
+                        <span class="publish-author">
+                            
+                            <i class="fas fa-bookmark fa-fw icon-category"></i>
+                            
+                            <a href="/categories/Java/" class="post-category">
+                                    Java
+                                </a>
+                            
+                            
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="card-action article-tags">
+                    
+                    <a href="/tags/Hashtable/">
+                        <span class="chip bg-color">Hashtable</span>
+                    </a>
+                    
+                </div>
+                
+            </div>
+        </div>
+        
+    </div>
+</article>
+
+</div>
+
+
+
+<!-- 代码块功能依赖 -->
+<script type="text/javascript" src="/libs/codeBlock/codeBlockFuction.js"></script>
+
+
+
+<!-- 代码语言 -->
+
+<script type="text/javascript" src="/libs/codeBlock/codeLang.js"></script>
+
+
+<!-- 代码块复制 -->
+
+<script type="text/javascript" src="/libs/codeBlock/codeCopy.js"></script>
+
+
+<!-- 代码块收缩 -->
+
+<script type="text/javascript" src="/libs/codeBlock/codeShrink.js"></script>
+
+
+
+    </div>
+    <div id="toc-aside" class="expanded col l3 hide-on-med-and-down">
+        <div class="toc-widget card" style="background-color: white;">
+            <div class="toc-title"><i class="far fa-list-alt"></i>&nbsp;&nbsp;目录</div>
+            <div id="toc-content"></div>
+        </div>
+    </div>
+</div>
+
+<!-- TOC 悬浮按钮. -->
+
+<div id="floating-toc-btn" class="hide-on-med-and-down">
+    <a class="btn-floating btn-large bg-color">
+        <i class="fas fa-list-ul"></i>
+    </a>
+</div>
+
+
+<script src="/libs/tocbot/tocbot.min.js"></script>
+<script>
+    $(function () {
+        tocbot.init({
+            tocSelector: '#toc-content',
+            contentSelector: '#articleContent',
+            headingsOffset: -($(window).height() * 0.4 - 45),
+            collapseDepth: Number('0'),
+            headingSelector: 'h2, h3, h4'
+        });
+
+        // Set scroll toc fixed.
+        let tocHeight = parseInt($(window).height() * 0.4 - 64);
+        let $tocWidget = $('.toc-widget');
+        $(window).scroll(function () {
+            let scroll = $(window).scrollTop();
+            /* add post toc fixed. */
+            if (scroll > tocHeight) {
+                $tocWidget.addClass('toc-fixed');
+            } else {
+                $tocWidget.removeClass('toc-fixed');
+            }
+        });
+
+        
+        /* 修复文章卡片 div 的宽度. */
+        let fixPostCardWidth = function (srcId, targetId) {
+            let srcDiv = $('#' + srcId);
+            if (srcDiv.length === 0) {
+                return;
+            }
+
+            let w = srcDiv.width();
+            if (w >= 450) {
+                w = w + 21;
+            } else if (w >= 350 && w < 450) {
+                w = w + 18;
+            } else if (w >= 300 && w < 350) {
+                w = w + 16;
+            } else {
+                w = w + 14;
+            }
+            $('#' + targetId).width(w);
+        };
+
+        // 切换TOC目录展开收缩的相关操作.
+        const expandedClass = 'expanded';
+        let $tocAside = $('#toc-aside');
+        let $mainContent = $('#main-content');
+        $('#floating-toc-btn .btn-floating').click(function () {
+            if ($tocAside.hasClass(expandedClass)) {
+                $tocAside.removeClass(expandedClass).hide();
+                $mainContent.removeClass('l9');
+            } else {
+                $tocAside.addClass(expandedClass).show();
+                $mainContent.addClass('l9');
+            }
+            fixPostCardWidth('artDetail', 'prenext-posts');
+        });
+        
+    });
+</script>
+
+    
+
+</main>
+
+
+
+
+    <footer class="page-footer bg-color">
+    
+        <link rel="stylesheet" href="/libs/aplayer/APlayer.min.css">
+<style>
+    .aplayer .aplayer-lrc p {
+        
+        display: none;
+        
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 16px !important;
+    }
+
+    .aplayer .aplayer-lrc p.aplayer-lrc-current {
+        
+        display: none;
+        
+        font-size: 15px;
+        color: #42b983;
+    }
+
+    
+    .aplayer.aplayer-fixed.aplayer-narrow .aplayer-body {
+        left: -66px !important;
+    }
+
+    .aplayer.aplayer-fixed.aplayer-narrow .aplayer-body:hover {
+        left: 0px !important;
+    }
+
+    
+</style>
+<div class="">
+    
+    <div class="row">
+        <meting-js class="col l8 offset-l2 m10 offset-m1 s12"
+                   server="netease"
+                   type="playlist"
+                   id="503838841"
+                   fixed='true'
+                   autoplay='false'
+                   theme='#42b983'
+                   loop='all'
+                   order='random'
+                   preload='auto'
+                   volume='0.7'
+                   list-folded='true'
+        >
+        </meting-js>
+    </div>
+</div>
+
+<script src="/libs/aplayer/APlayer.min.js"></script>
+<script src="/libs/aplayer/Meting.min.js"></script>
+
+    
+
+    <div class="container row center-align"
+         style="margin-bottom: 0px !important;">
+        <div class="col s12 m8 l8 copy-right">
+            Copyright&nbsp;&copy;
+            
+                <span id="year">2019-2022</span>
+            
+            <a href="/about" target="_blank">Sky</a>
+            |&nbsp;Powered by&nbsp;<a href="https://hexo.io/" target="_blank">Hexo</a>
+            |&nbsp;Theme&nbsp;<a href="https://github.com/blinkfox/hexo-theme-matery" target="_blank">Matery</a>
+            <br>
+            
+            
+            
+                
+            
+            
+                <span id="busuanzi_container_site_pv">
+                &nbsp;|&nbsp;<i class="far fa-eye"></i>&nbsp;总访问量:&nbsp;
+                    <span id="busuanzi_value_site_pv" class="white-color"></span>
+            </span>
+            
+            
+                <span id="busuanzi_container_site_uv">
+                &nbsp;|&nbsp;<i class="fas fa-users"></i>&nbsp;总访问人数:&nbsp;
+                    <span id="busuanzi_value_site_uv" class="white-color"></span>
+            </span>
+            
+            <br>
+
+            <!-- 运行天数提醒. -->
+            
+            <br>
+            
+        </div>
+        <div class="col s12 m4 l4 social-link social-statis">
+    <a href="https://github.com/kuangtianyu" class="tooltipped" target="_blank" data-tooltip="访问我的GitHub" data-position="top" data-delay="50">
+        <i class="fab fa-github"></i>
+    </a>
+
+
+
+    <a href="mailto:1575235124@qq.com" class="tooltipped" target="_blank" data-tooltip="邮件联系我" data-position="top" data-delay="50">
+        <i class="fas fa-envelope-open"></i>
+    </a>
+
+
+
+
+
+
+
+    <a href="tencent://AddContact/?fromId=50&fromSubId=1&subcmd=all&uin=1575235124" class="tooltipped" target="_blank" data-tooltip="QQ联系我: 1575235124" data-position="top" data-delay="50">
+        <i class="fab fa-qq"></i>
+    </a>
+
+
+
+
+
+
+
+    <a href="/atom.xml" class="tooltipped" target="_blank" data-tooltip="RSS 订阅" data-position="top" data-delay="50">
+        <i class="fas fa-rss"></i>
+    </a>
+
+</div>
+    </div>
+</footer>
+
+<div class="progress-bar"></div>
+
+
+    <!-- 搜索遮罩框 -->
+<div id="searchModal" class="modal">
+    <div class="modal-content">
+        <div class="search-header">
+            <span class="title"><i class="fas fa-search"></i>&nbsp;&nbsp;搜索</span>
+            <input type="search" id="searchInput" name="s" placeholder="请输入搜索的关键字"
+                   class="search-input">
+        </div>
+        <div id="searchResult"></div>
+    </div>
+</div>
+
+<script type="text/javascript">
+$(function () {
+    var searchFunc = function (path, search_id, content_id) {
+        'use strict';
+        $.ajax({
+            url: path,
+            dataType: "xml",
+            success: function (xmlResponse) {
+                // get the contents from search data
+                var datas = $("entry", xmlResponse).map(function () {
+                    return {
+                        title: $("title", this).text(),
+                        content: $("content", this).text(),
+                        url: $("url", this).text()
+                    };
+                }).get();
+                var $input = document.getElementById(search_id);
+                var $resultContent = document.getElementById(content_id);
+                $input.addEventListener('input', function () {
+                    var str = '<ul class=\"search-result-list\">';
+                    var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+                    $resultContent.innerHTML = "";
+                    if (this.value.trim().length <= 0) {
+                        return;
+                    }
+                    // perform local searching
+                    datas.forEach(function (data) {
+                        var isMatch = true;
+                        var data_title = data.title.trim().toLowerCase();
+                        var data_content = data.content.trim().replace(/<[^>]+>/g, "").toLowerCase();
+                        var data_url = data.url;
+                        data_url = data_url.indexOf('/') === 0 ? data.url : '/' + data_url;
+                        var index_title = -1;
+                        var index_content = -1;
+                        var first_occur = -1;
+                        // only match artiles with not empty titles and contents
+                        if (data_title !== '' && data_content !== '') {
+                            keywords.forEach(function (keyword, i) {
+                                index_title = data_title.indexOf(keyword);
+                                index_content = data_content.indexOf(keyword);
+                                if (index_title < 0 && index_content < 0) {
+                                    isMatch = false;
+                                } else {
+                                    if (index_content < 0) {
+                                        index_content = 0;
+                                    }
+                                    if (i === 0) {
+                                        first_occur = index_content;
+                                    }
+                                }
+                            });
+                        }
+                        // show search results
+                        if (isMatch) {
+                            str += "<li><a href='" + data_url + "' class='search-result-title'>" + data_title + "</a>";
+                            var content = data.content.trim().replace(/<[^>]+>/g, "");
+                            if (first_occur >= 0) {
+                                // cut out 100 characters
+                                var start = first_occur - 20;
+                                var end = first_occur + 80;
+                                if (start < 0) {
+                                    start = 0;
+                                }
+                                if (start === 0) {
+                                    end = 100;
+                                }
+                                if (end > content.length) {
+                                    end = content.length;
+                                }
+                                var match_content = content.substr(start, end);
+                                // highlight all keywords
+                                keywords.forEach(function (keyword) {
+                                    var regS = new RegExp(keyword, "gi");
+                                    match_content = match_content.replace(regS, "<em class=\"search-keyword\">" + keyword + "</em>");
+                                });
+
+                                str += "<p class=\"search-result\">" + match_content + "...</p>"
+                            }
+                            str += "</li>";
+                        }
+                    });
+                    str += "</ul>";
+                    $resultContent.innerHTML = str;
+                });
+            }
+        });
+    };
+
+    searchFunc('/search.xml', 'searchInput', 'searchResult');
+});
+</script>
+
+    <!-- 回到顶部按钮 -->
+<div id="backTop" class="top-scroll">
+    <a class="btn-floating btn-large waves-effect waves-light" href="#!">
+        <i class="fas fa-arrow-up"></i>
+    </a>
+</div>
+
+
+    <script src="/libs/materialize/materialize.min.js"></script>
+    <script src="/libs/masonry/masonry.pkgd.min.js"></script>
+    <script src="/libs/aos/aos.js"></script>
+    <script src="/libs/scrollprogress/scrollProgress.min.js"></script>
+    <script src="/libs/lightGallery/js/lightgallery-all.min.js"></script>
+    <script src="/js/matery.js"></script>
+
+    
+
+    
+
+    <!-- 雪花特效 -->
+    
+
+    <!-- 鼠标星星特效 -->
+     
+        <script type="text/javascript">
+            // 只在桌面版网页启用特效
+            var windowWidth = $(window).width();
+            if (windowWidth > 768) {
+                document.write('<script type="text/javascript" src="/libs/others/star.js"><\/script>');
+            }
+        </script>
+    
+
+    
+
+    <!-- Baidu Analytics -->
+
+    <!-- Baidu Push -->
+
+<script>
+    (function () {
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        } else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+    
+    <script src="/libs/others/clicklove.js" async="async"></script>
+    
+    
+    <script async src="/libs/others/busuanzi.pure.mini.js"></script>
+    
+
+    
+
+    
+
+    <!--腾讯兔小巢-->
+    
+    
+
+    
+
+    
+    <script type="text/javascript" src="/libs/background/ribbon-dynamic.js" async="async"></script>
+    
+
+    
+    <script src="/libs/instantpage/instantpage.js" type="module"></script>
+    
+
+</body>
+
+</html>

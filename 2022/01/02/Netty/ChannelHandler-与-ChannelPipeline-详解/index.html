@@ -1,0 +1,1615 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+
+
+<head>
+    <meta charset="utf-8">
+    <meta name="keywords" content="ChannelHandler 与 ChannelPipeline 详解, Sky">
+    <meta name="description" content="我们在上一章研究的 bytebuf 是一个容器用来“包装”数据。在本章我们将探讨这些容器如何通过应用程序来移动，传入和传出，以及他们的内容是如何处理的。
+本章主要内容
+
+Channel
+ChannelHandler
+ChannePipeli">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="renderer" content="webkit|ie-stand|ie-comp">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="referrer" content="no-referrer-when-downgrade">
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+
+
+    
+    <style>
+        body{
+            background-image: url(https://cdn.jsdelivr.net/gh/Tokisaki-Galaxy/res/site/medias/background.jpg);
+            background-repeat:no-repeat;
+            background-size: 100% 100%;
+            background-attachment:fixed;
+        }
+    </style>
+
+
+    <title>ChannelHandler 与 ChannelPipeline 详解 | Sky</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+
+    <link rel="stylesheet" type="text/css" href="/libs/awesome/css/all.min.css">
+    <link rel="stylesheet" type="text/css" href="/libs/materialize/materialize.min.css">
+    <link rel="stylesheet" type="text/css" href="/libs/aos/aos.css">
+    <link rel="stylesheet" type="text/css" href="/libs/animate/animate.min.css">
+    <link rel="stylesheet" type="text/css" href="/libs/lightGallery/css/lightgallery.min.css">
+    <link rel="stylesheet" type="text/css" href="/css/matery.css">
+    <link rel="stylesheet" type="text/css" href="/css/my.css">
+
+    <script src="/libs/jquery/jquery-3.6.0.min.js"></script>
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+    <header class="navbar-fixed">
+    <nav id="headNav" class="bg-color nav-transparent">
+        <div id="navContainer" class="nav-wrapper container">
+            <div class="brand-logo">
+                <a href="/" class="waves-effect waves-light">
+                    
+                    <img src="/medias/logo.png" class="logo-img" alt="LOGO">
+                    
+                    <span class="logo-span">Sky</span>
+                </a>
+            </div>
+            
+
+<a href="#" data-target="mobile-nav" class="sidenav-trigger button-collapse"><i class="fas fa-bars"></i></a>
+<ul class="right nav-menu">
+  
+  <li class="hide-on-med-and-down nav-item">
+    
+    <a href="/" class="waves-effect waves-light">
+      
+      <i class="fas fa-home" style="zoom: 0.6;"></i>
+      
+      <span>首页</span>
+    </a>
+    
+  </li>
+  
+  <li class="hide-on-med-and-down nav-item">
+    
+    <a href="/tags" class="waves-effect waves-light">
+      
+      <i class="fas fa-tags" style="zoom: 0.6;"></i>
+      
+      <span>标签</span>
+    </a>
+    
+  </li>
+  
+  <li class="hide-on-med-and-down nav-item">
+    
+    <a href="/categories" class="waves-effect waves-light">
+      
+      <i class="fas fa-bookmark" style="zoom: 0.6;"></i>
+      
+      <span>分类</span>
+    </a>
+    
+  </li>
+  
+  <li class="hide-on-med-and-down nav-item">
+    
+    <a href="/archives" class="waves-effect waves-light">
+      
+      <i class="fas fa-archive" style="zoom: 0.6;"></i>
+      
+      <span>归档</span>
+    </a>
+    
+  </li>
+  
+  <li class="hide-on-med-and-down nav-item">
+    
+    <a href="/about" class="waves-effect waves-light">
+      
+      <i class="fas fa-user-circle" style="zoom: 0.6;"></i>
+      
+      <span>关于</span>
+    </a>
+    
+  </li>
+  
+  <li class="hide-on-med-and-down nav-item">
+    
+    <a href="/contact" class="waves-effect waves-light">
+      
+      <i class="fas fa-comments" style="zoom: 0.6;"></i>
+      
+      <span>留言板</span>
+    </a>
+    
+  </li>
+  
+  <li class="hide-on-med-and-down nav-item">
+    
+    <a href="/friends" class="waves-effect waves-light">
+      
+      <i class="fas fa-address-book" style="zoom: 0.6;"></i>
+      
+      <span>友情链接</span>
+    </a>
+    
+  </li>
+  
+  <li>
+    <a href="#searchModal" class="modal-trigger waves-effect waves-light">
+      <i id="searchIcon" class="fas fa-search" title="搜索" style="zoom: 0.85;"></i>
+    </a>
+  </li>
+</ul>
+
+
+<div id="mobile-nav" class="side-nav sidenav">
+
+    <div class="mobile-head bg-color">
+        
+        <img src="/medias/logo.png" class="logo-img circle responsive-img">
+        
+        <div class="logo-name">Sky</div>
+        <div class="logo-desc">
+            
+            Never really desperate, only the lost of the soul.
+            
+        </div>
+    </div>
+
+    <ul class="menu-list mobile-menu-list">
+        
+        <li class="m-nav-item">
+	  
+		<a href="/" class="waves-effect waves-light">
+			
+			    <i class="fa-fw fas fa-home"></i>
+			
+			首页
+		</a>
+          
+        </li>
+        
+        <li class="m-nav-item">
+	  
+		<a href="/tags" class="waves-effect waves-light">
+			
+			    <i class="fa-fw fas fa-tags"></i>
+			
+			标签
+		</a>
+          
+        </li>
+        
+        <li class="m-nav-item">
+	  
+		<a href="/categories" class="waves-effect waves-light">
+			
+			    <i class="fa-fw fas fa-bookmark"></i>
+			
+			分类
+		</a>
+          
+        </li>
+        
+        <li class="m-nav-item">
+	  
+		<a href="/archives" class="waves-effect waves-light">
+			
+			    <i class="fa-fw fas fa-archive"></i>
+			
+			归档
+		</a>
+          
+        </li>
+        
+        <li class="m-nav-item">
+	  
+		<a href="/about" class="waves-effect waves-light">
+			
+			    <i class="fa-fw fas fa-user-circle"></i>
+			
+			关于
+		</a>
+          
+        </li>
+        
+        <li class="m-nav-item">
+	  
+		<a href="/contact" class="waves-effect waves-light">
+			
+			    <i class="fa-fw fas fa-comments"></i>
+			
+			留言板
+		</a>
+          
+        </li>
+        
+        <li class="m-nav-item">
+	  
+		<a href="/friends" class="waves-effect waves-light">
+			
+			    <i class="fa-fw fas fa-address-book"></i>
+			
+			友情链接
+		</a>
+          
+        </li>
+        
+        
+        <li><div class="divider"></div></li>
+        <li>
+            <a href="https://github.com/blinkfox/hexo-theme-matery" class="waves-effect waves-light" target="_blank">
+                <i class="fab fa-github-square fa-fw"></i>Fork Me
+            </a>
+        </li>
+        
+    </ul>
+</div>
+
+
+        </div>
+
+        
+            <style>
+    .nav-transparent .github-corner {
+        display: none !important;
+    }
+
+    .github-corner {
+        position: absolute;
+        z-index: 10;
+        top: 0;
+        right: 0;
+        border: 0;
+        transform: scale(1.1);
+    }
+
+    .github-corner svg {
+        color: #0f9d58;
+        fill: #fff;
+        height: 64px;
+        width: 64px;
+    }
+
+    .github-corner:hover .octo-arm {
+        animation: a 0.56s ease-in-out;
+    }
+
+    .github-corner .octo-arm {
+        animation: none;
+    }
+
+    @keyframes a {
+        0%,
+        to {
+            transform: rotate(0);
+        }
+        20%,
+        60% {
+            transform: rotate(-25deg);
+        }
+        40%,
+        80% {
+            transform: rotate(10deg);
+        }
+    }
+</style>
+
+<a href="https://github.com/blinkfox/hexo-theme-matery" class="github-corner tooltipped hide-on-med-and-down" target="_blank"
+   data-tooltip="Fork Me" data-position="left" data-delay="50">
+    <svg viewBox="0 0 250 250" aria-hidden="true">
+        <path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path>
+        <path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2"
+              fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path>
+        <path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z"
+              fill="currentColor" class="octo-body"></path>
+    </svg>
+</a>
+        
+    </nav>
+
+</header>
+
+    
+
+
+
+<div class="bg-cover pd-header post-cover" style="background-image: url('/medias/featureimages/13.jpg')">
+    <div class="container" style="right: 0px;left: 0px;">
+        <div class="row">
+            <div class="col s12 m12 l12">
+                <div class="brand">
+                    <h1 class="description center-align post-title">ChannelHandler 与 ChannelPipeline 详解</h1>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+<main class="post-container content">
+
+    
+    <link rel="stylesheet" href="/libs/tocbot/tocbot.css">
+<style>
+    #articleContent h1::before,
+    #articleContent h2::before,
+    #articleContent h3::before,
+    #articleContent h4::before,
+    #articleContent h5::before,
+    #articleContent h6::before {
+        display: block;
+        content: " ";
+        height: 100px;
+        margin-top: -100px;
+        visibility: hidden;
+    }
+
+    #articleContent :focus {
+        outline: none;
+    }
+
+    .toc-fixed {
+        position: fixed;
+        top: 64px;
+    }
+
+    .toc-widget {
+        width: 345px;
+        padding-left: 20px;
+    }
+
+    .toc-widget .toc-title {
+        padding: 35px 0 15px 17px;
+        font-size: 1.5rem;
+        font-weight: bold;
+        line-height: 1.5rem;
+    }
+
+    .toc-widget ol {
+        padding: 0;
+        list-style: none;
+    }
+
+    #toc-content {
+        padding-bottom: 30px;
+        overflow: auto;
+    }
+
+    #toc-content ol {
+        padding-left: 10px;
+    }
+
+    #toc-content ol li {
+        padding-left: 10px;
+    }
+
+    #toc-content .toc-link:hover {
+        color: #42b983;
+        font-weight: 700;
+        text-decoration: underline;
+    }
+
+    #toc-content .toc-link::before {
+        background-color: transparent;
+        max-height: 25px;
+
+        position: absolute;
+        right: 23.5vw;
+        display: block;
+    }
+
+    #toc-content .is-active-link {
+        color: #42b983;
+    }
+
+    #floating-toc-btn {
+        position: fixed;
+        right: 15px;
+        bottom: 76px;
+        padding-top: 15px;
+        margin-bottom: 0;
+        z-index: 998;
+    }
+
+    #floating-toc-btn .btn-floating {
+        width: 48px;
+        height: 48px;
+    }
+
+    #floating-toc-btn .btn-floating i {
+        line-height: 48px;
+        font-size: 1.4rem;
+    }
+</style>
+<div class="row">
+    <div id="main-content" class="col s12 m12 l9">
+        <!-- 文章内容详情 -->
+<div id="artDetail">
+    <div class="card">
+        <div class="card-content article-info">
+            <div class="row tag-cate">
+                <div class="col s7">
+                    
+                    <div class="article-tag">
+                        
+                            <a href="/tags/ChannelHandler-%E4%B8%8E-ChannelPipeline-%E8%AF%A6%E8%A7%A3/">
+                                <span class="chip bg-color">ChannelHandler 与 ChannelPipeline 详解</span>
+                            </a>
+                        
+                    </div>
+                    
+                </div>
+                <div class="col s5 right-align">
+                    
+                    <div class="post-cate">
+                        <i class="fas fa-bookmark fa-fw icon-category"></i>
+                        
+                            <a href="/categories/Netty/" class="post-category">
+                                Netty
+                            </a>
+                        
+                    </div>
+                    
+                </div>
+            </div>
+
+            <div class="post-info">
+                
+                <div class="post-date info-break-policy">
+                    <i class="far fa-calendar-minus fa-fw"></i>发布日期:&nbsp;&nbsp;
+                    2022-01-02
+                </div>
+                
+
+                
+
+                
+
+                
+
+                
+            </div>
+        </div>
+        <hr class="clearfix">
+
+        
+
+        
+
+        <div class="card-content article-card-content">
+            <div id="articleContent">
+                <p>我们在上一章研究的 <code>bytebuf</code> 是一个容器用来“包装”数据。在<strong>本章我们将探讨这些容器如何通过应用程序来移动，传入和传出，以及他们的内容是如何处理的</strong>。</p>
+<p>本章主要内容</p>
+<ul>
+<li><code>Channel</code></li>
+<li><code>ChannelHandler</code></li>
+<li><code>ChannePipeline</code></li>
+<li><code>ChannelHandlerContext</code></li>
+</ul>
+<h2 id="1-ChannelHandler-家族"><a href="#1-ChannelHandler-家族" class="headerlink" title="1. ChannelHandler 家族"></a>1. ChannelHandler 家族</h2><h3 id="①-Channel-生命周期"><a href="#①-Channel-生命周期" class="headerlink" title="① Channel 生命周期"></a>① Channel 生命周期</h3><p>在 <code>Channel</code> 的生命周期中，它的状态与 <code>ChannelHandler</code> 是密切相关的，下列是 <code>Channel</code> 组件的四个状态：</p>
+<table>
+<thead>
+<tr>
+<th align="left">状态</th>
+<th align="left">描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">ChannelUnregistered</td>
+<td align="left">Channel 没有注册到 EventLoop</td>
+</tr>
+<tr>
+<td align="left">ChannelRegistered</td>
+<td align="left">Channel 被注册到了 EventLoop</td>
+</tr>
+<tr>
+<td align="left">ChannelActive</td>
+<td align="left">Channel 已经连接到它的远程节点，处于活动状态，可以收发数据</td>
+</tr>
+<tr>
+<td align="left">ChannelInactive</td>
+<td align="left">Channel 与远程节点断开不再处于活动状态</td>
+</tr>
+</tbody></table>
+<p>Channel 的生命周期如下图所示，<strong>当这些状态发生改变时，将会生成对应的事件，<code>ChannelPipeline </code>中的<code>ChannelHandler </code>就可以及时做出处理</strong>：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327115607525.png" alt="image-20220327115607525" style="zoom:80%;" />
+
+<h3 id="②-ChannelHandler-生命周期"><a href="#②-ChannelHandler-生命周期" class="headerlink" title="② ChannelHandler 生命周期"></a>② ChannelHandler 生命周期</h3><p><code>ChannelHandler</code> 接口定义了其生命周期中的操作，当<code>ChanelHandler</code>被添加到<code>ChannelPipeline </code>或从<code>ChannelPipeline</code>中移除时，会调用这些操作，<code>ChannelHandler</code>的生命周期如下：</p>
+<table>
+<thead>
+<tr>
+<th align="left">方法</th>
+<th align="left">描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><code>handlerAdded</code></td>
+<td align="left">当把 ChannelHandler 添加到 ChannelPipeline 中时调用此方法</td>
+</tr>
+<tr>
+<td align="left"><code>handlerRemoved</code></td>
+<td align="left">当把 ChannelHandler 从 ChannelPipeline 中移除的时候会调用此方法</td>
+</tr>
+<tr>
+<td align="left"><code>exceptionCaught</code></td>
+<td align="left">当 ChannelHandler 在处理数据的过程中发生异常时会调用此方法</td>
+</tr>
+</tbody></table>
+<h3 id="③-ChannelHanler-子接口"><a href="#③-ChannelHanler-子接口" class="headerlink" title="③  ChannelHanler 子接口"></a>③  ChannelHanler 子接口</h3><p>Netty 提供2个重要的 ChannelHandler 子接口：</p>
+<ul>
+<li><code>ChannelInboundHandler</code> - 处理进站数据，并且所有状态都更改</li>
+<li><code>ChannelOutboundHandler </code>- 处理出站数据，允许拦截各种操作</li>
+</ul>
+<h4 id="Ⅰ-ChannelInboundHandler-接口"><a href="#Ⅰ-ChannelInboundHandler-接口" class="headerlink" title="Ⅰ ChannelInboundHandler 接口"></a>Ⅰ ChannelInboundHandler 接口</h4><p><code>ChannelInboundHandler</code>会在接受数据或者其对应的<code>Channel</code>状态发生改变时调用其生命周期的方法， <code>ChannelInboundHandler</code>的生命周期和<code>Channel</code>的生命周期其实是密切相关的。 以下是<code>ChannelInboundHandler</code>的生命周期方法：</p>
+<table>
+<thead>
+<tr>
+<th align="left">方法</th>
+<th align="left">描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><code>ChannelRegistered</code></td>
+<td align="left">当Channel被注册到EventLoop且能够处理IO事件时会调用此方法</td>
+</tr>
+<tr>
+<td align="left"><code>ChannelUnregistered</code></td>
+<td align="left">当Channel从EventLoop注销且无法处理任何IO事件时会调用此方法</td>
+</tr>
+<tr>
+<td align="left"><code>ChannelActive</code></td>
+<td align="left">当Channel已经连接到远程节点(或者已绑定本地address)且处于活动状态时会调用此方法</td>
+</tr>
+<tr>
+<td align="left"><code>ChannelInactive</code></td>
+<td align="left">当Channel与远程节点断开，不再处于活动状态时调用此方法</td>
+</tr>
+<tr>
+<td align="left"><code>ChannelReadComplete</code></td>
+<td align="left">当Channel的某一个读操作完成时调用此方法</td>
+</tr>
+<tr>
+<td align="left"><code>ChannelRead</code></td>
+<td align="left">当Channel有数据可读时调用此方法</td>
+</tr>
+<tr>
+<td align="left"><code>ChannelWritabilityChanged</code></td>
+<td align="left">当Channel的可写状态发生改变时调用此方法，可以调用Channel的isWritable方法检测Channel的可写性，还可以通过ChannelConfig来配置write操作相关的属性</td>
+</tr>
+<tr>
+<td align="left"><code>userEventTriggered</code></td>
+<td align="left">当ChannelInboundHandler的fireUserEventTriggered方法被调用时才调用此方法。</td>
+</tr>
+</tbody></table>
+<p><strong>这里有一个细节一定需要注意：当我们实现<code>ChannelInboundHandler</code>的<code>channelRead</code>方法时，请一定要记住 使用<code>ReferenceCountUtil</code>的<code>release</code>方法释放<code>ByteBuf</code>，这样可以减少内存的消耗，所以我们可以实现一个 <code>ChannelHandler</code>来完成对<code>ByteBuf</code>的释放，就像下面这样：</strong></p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327115615650.png" alt="image-20220327115615650" style="zoom:80%;" />
+
+<p><strong>由于手工管理资源会很繁琐,您可以通过使用 <code>SimpleChannelInboundHandler</code> 简化问题</strong>，因为<code>SimpleChannelInboundHandler</code>已经帮我们 把与业务无关的逻辑在<code>ChannelRead</code>方法实现了，<strong>我们只需要实现它的<code>channelRead0</code>方法来完成我们的逻辑就够了</strong>：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@ChannelHandler</span>.Sharable</span><br><span class="line"><span class="comment">// 继承 SimpleChannelInboundHandler</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">SimpleDiscardHandler</span> <span class="keyword">extends</span> <span class="title">SimpleChannelInboundHandler</span>&lt;<span class="title">Object</span>&gt; </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">channelRead0</span><span class="params">(ChannelHandlerContext ctx, Object msg)</span> </span>&#123;</span><br><span class="line">        <span class="comment">// 不需做特别的释放资源的动作</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>💡 注意：**<code>SimpleChannelInboundHandler&lt;Object&gt;</code> 中的泛型表示要处理的入站数据的类型**</p>
+<h5 id="ChannelInitializer"><a href="#ChannelInitializer" class="headerlink" title="ChannelInitializer"></a>ChannelInitializer</h5><p>回顾一下我们在第一个 Netty 应用章节的服务端代码：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">HelloServer</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    ......</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">start</span><span class="params">()</span> <span class="keyword">throws</span> InterruptedException </span>&#123;</span><br><span class="line">        <span class="comment">// 1.bossGroup 线程用于接收连接，workerGroup 线程用于具体的处理</span></span><br><span class="line">        EventLoopGroup bossGroup = <span class="keyword">new</span> NioEventLoopGroup(<span class="number">1</span>);</span><br><span class="line">        EventLoopGroup workerGroup = <span class="keyword">new</span> NioEventLoopGroup();</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="comment">// 2.创建服务端启动引导/辅助类：ServerBootstrap</span></span><br><span class="line">            ServerBootstrap b = <span class="keyword">new</span> ServerBootstrap();</span><br><span class="line">            <span class="comment">// 3.给引导类配置两大线程组,确定了线程模型</span></span><br><span class="line">            b.group(bossGroup, workerGroup)</span><br><span class="line">                    <span class="comment">// (非必备)打印日志</span></span><br><span class="line">                    .handler(<span class="keyword">new</span> LoggingHandler(LogLevel.INFO))</span><br><span class="line">                    <span class="comment">// 4.指定 IO 模型为 NIO</span></span><br><span class="line">                    .channel(NioServerSocketChannel.class)</span><br><span class="line">                    .childHandler(<span class="keyword">new</span> ChannelInitializer&lt;SocketChannel&gt;() &#123;</span><br><span class="line">                        <span class="meta">@Override</span></span><br><span class="line">                        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">initChannel</span><span class="params">(SocketChannel ch)</span> </span>&#123;</span><br><span class="line">                            ChannelPipeline p = ch.pipeline();</span><br><span class="line">                            <span class="comment">// 5.可以自定义客户端消息的业务处理逻辑</span></span><br><span class="line">                            p.addLast(<span class="keyword">new</span> HelloServerHandler());</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;);</span><br><span class="line">            ......</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    ......</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>其中加入 <code>ServerBootstrap</code> 中处理的 channel 是一个 <code>ChannelInitializer </code>，这是怎么回事呢，不是应该相应的<code>ChannelHandler</code> 吗？我们来看一下<code>Channelnitializer</code>源代码：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">abstract</span> <span class="class"><span class="keyword">class</span> <span class="title">ChannelInitializer</span>&lt;<span class="title">C</span> <span class="keyword">extends</span> <span class="title">Channel</span>&gt; <span class="keyword">extends</span> <span class="title">ChannelInboundHandlerAdapter</span> </span>&#123;</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> InternalLogger logger = InternalLoggerFactory.getInstance(ChannelInitializer.class);</span><br><span class="line"> </span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 这个方法会在Channle被注册时候调用，在方法返回之后，这个实例会在Channel对应的ChannelPipeline中删除</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> ch            the &#123;<span class="doctag">@link</span> Channel&#125; which was registered.</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@throws</span> Exception    is thrown if an error occurs. In that case the &#123;<span class="doctag">@link</span> Channel&#125; will be closed.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">abstract</span> <span class="keyword">void</span> <span class="title">initChannel</span><span class="params">(C ch)</span> <span class="keyword">throws</span> Exception</span>;</span><br><span class="line"> </span><br><span class="line">    <span class="meta">@SuppressWarnings(&quot;unchecked&quot;)</span></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title">channelRegistered</span><span class="params">(ChannelHandlerContext ctx)</span></span></span><br><span class="line"><span class="function">            <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        <span class="keyword">boolean</span> removed = <span class="keyword">false</span>;</span><br><span class="line">        <span class="keyword">boolean</span> success = <span class="keyword">false</span>;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            initChannel((C) ctx.channel());</span><br><span class="line">            ctx.pipeline().remove(<span class="keyword">this</span>);</span><br><span class="line">            removed = <span class="keyword">true</span>;</span><br><span class="line">            ctx.fireChannelRegistered();</span><br><span class="line">            success = <span class="keyword">true</span>;</span><br><span class="line">        &#125; <span class="keyword">catch</span> (Throwable t) &#123;</span><br><span class="line">            logger.warn(<span class="string">&quot;Failed to initialize a channel. Closing: &quot;</span> + ctx.channel(), t);</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            <span class="keyword">if</span> (!removed) &#123;</span><br><span class="line">                ctx.pipeline().remove(<span class="keyword">this</span>);</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">if</span> (!success) &#123;</span><br><span class="line">                ctx.close();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>从上面可以看出**<code>ChannelInitializer</code>其实也是一个<code>ChannelHandler</code>**，只是<code>ChannelInitializer</code>的主要任务不是对IO进行处理，而更多的负责对注册到<code>EventGroup</code>的<code>Channel</code>进行 init 处理，其中大多是进行加入 Handler 的处理</p>
+<h4 id="Ⅱ-ChannelOutboundHandler接口"><a href="#Ⅱ-ChannelOutboundHandler接口" class="headerlink" title="Ⅱ ChannelOutboundHandler接口"></a>Ⅱ ChannelOutboundHandler接口</h4><p>出站数据将由<code>ChannelOutboundHandler</code>处理，它的方法将被<code>Channel</code>，<code>ChannelPipeline</code>以及<code>ChannelHandlerContext</code>调用 （<code>Channel</code>，<code>ChannelPipeline</code>，<code>ChannelHandlerContext</code>都拥有<code>write</code>操作），以下是<code>ChannelOutboundHandler</code>的主要方法：</p>
+<table>
+<thead>
+<tr>
+<th align="left">状态</th>
+<th align="left">描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">bind</td>
+<td align="left">当Channel绑定到本地address时会调用此方法</td>
+</tr>
+<tr>
+<td align="left">connect</td>
+<td align="left">当Channel连接到远程节点时会调用此方法</td>
+</tr>
+<tr>
+<td align="left">disconnect</td>
+<td align="left">当Channel和远程节点断开时会调用此方法</td>
+</tr>
+<tr>
+<td align="left">close</td>
+<td align="left">当关闭Channel时会调用此方法</td>
+</tr>
+<tr>
+<td align="left">deregister</td>
+<td align="left">当Channel从它的EventLoop注销时会调用此方法</td>
+</tr>
+<tr>
+<td align="left">read</td>
+<td align="left">当从Channel读取数据时会调用此方法</td>
+</tr>
+<tr>
+<td align="left">flush</td>
+<td align="left">当Channel将数据冲刷到远程节点时调用此方法</td>
+</tr>
+<tr>
+<td align="left">write</td>
+<td align="left">当通过Channel将数据写入到远程节点时调用此方法</td>
+</tr>
+</tbody></table>
+<p><strong>几乎所有的方法都将 <code>ChannelPromise </code>作为参数</strong>, 一旦请求结束要通过 <code>ChannelPipeline </code>转发的时候，必须通知此参数。</p>
+<p><strong>ChannelPromise vs. ChannelFuture</strong>：</p>
+<ul>
+<li><code>ChannelPromise </code>是 特殊的 <code>ChannelFuture</code> <strong>（<code>ChannelPromise </code>扩展了 <code>ChannelFuture</code>）</strong>。任何时候调用例如 <code>Channel.write(...)</code> 一个新的 <code>ChannelPromise</code>将会创建并且通过 <code>ChannelPipeline</code>传递。这次写操作本身将会返回 <code>ChannelFuture</code>， 这样只允许你得到一次操作完成的通知。Netty 本身使用 <code>ChannelPromise </code>作为返回的 <code>ChannelFuture</code> 的通知，事实上在大多数时候就是 <code>ChannelPromise </code>自身</li>
+</ul>
+<h3 id="④-资源管理"><a href="#④-资源管理" class="headerlink" title="④ 资源管理"></a>④ 资源管理</h3><p><strong>当我们使用<code>ChannelInboundHandler</code>的<code>read</code>或<code>ChannelOutboundHandler</code>的<code>write</code>操作时，我们都需要保证 没有任何资源泄露并尽可能的减少资源耗费。</strong></p>
+<p>之前已经介绍过了<code>ReferenceCount</code>引用计数用于处理池化的 <code>ByteBuf</code>资源。 为了帮助我们诊断潜在的的资源泄露问题，Netty提供了<code>ResourceLeakDetector</code>，它将 对我们的Netty程序的已分配的缓冲区做大约 1% 的采样用以检测内存泄露，Netty 目前定义了4种泄露检测级别，如下</p>
+<table>
+<thead>
+<tr>
+<th align="left">级别</th>
+<th align="left">描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Disabled</td>
+<td align="left">禁用泄露检测。我们应当在详细测试之后才应该使用此级别。</td>
+</tr>
+<tr>
+<td align="left">SIMPLE</td>
+<td align="left">使用1%的默认采样率检测并报告任何发现的泄露，这是默认的检测级别。</td>
+</tr>
+<tr>
+<td align="left">ADVANCED</td>
+<td align="left">使用默认的采样率，报告任何发现的泄露以及对应的消息的位置。</td>
+</tr>
+<tr>
+<td align="left">PARANOID</td>
+<td align="left">类似于ADVANCED，但是每次都会对消息的访问进行采样，此级别可能会对程序的性能造成影响，应该用于调试阶段。</td>
+</tr>
+</tbody></table>
+<p>我们可以通过 JVM 启动参数来设置<code>leakDetector</code>的级别：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">java -Dio.netty.leakDetectionLevel=ADVANCED</span><br></pre></td></tr></table></figure>
+
+<h2 id="2-ChannelPipeline"><a href="#2-ChannelPipeline" class="headerlink" title="2. ChannelPipeline"></a>2. ChannelPipeline</h2><p>在 Netty 组件中也介绍过了，<code>ChannelPipeline</code>是一系列<code>ChannelHandler</code>组成的拦截链，每一个新创建的<code>Channel </code>都会被分配一个新的<code>ChannelPipeline</code>，<code>Channel</code>和<code>ChannelPipeline</code>之间的关联是持久的，无需我们干涉它们 之间的关系。</p>
+<h3 id="①-ChannelPipeline-相对论"><a href="#①-ChannelPipeline-相对论" class="headerlink" title="① ChannelPipeline 相对论"></a>① ChannelPipeline 相对论</h3><p>Netty 总是将<code>ChannelPipeline</code>的入站口作为头部，出站口作为尾部，当我们通过<code>ChannelPipeline</code>的<code>add</code>方法 将入站处理器和出站处理器混合添加到<code>ChannelPipeline</code>后，<code>ChannelHandler</code>的顺序如下：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327115624803.png" alt="image-20220327115624803" style="zoom:80%;" />
+
+<p>一个入站事件将从<code>ChannelPipeline</code>的头部（左侧）向尾部（右侧）开始传播，出站事件的传播则是与入站的传播方向相反。当<code>ChannelPipeline</code>在<code>ChannelHandler</code>之间传播事件的时候，它会判断下一个<code>ChannelHandler</code>的类型是否与当前<code>ChannelHandler</code>的类型相同（通过 <code>ChannelHandlerContext</code>），如果相同则说明它们是一个方向的事件， 如果不同则跳过该<code>ChannelHandler</code>并前进到下一个<code>ChannelHandler</code>，直到它找到相同类型的<code>ChannelHandler</code>。</p>
+<h3 id="②-修改ChannelPipeline"><a href="#②-修改ChannelPipeline" class="headerlink" title="② 修改ChannelPipeline"></a>② 修改ChannelPipeline</h3><p><code>ChannelPipeline</code>可以通过添加，删除和修改<code>ChannelHandler</code>来修改它自身的布局，这是它最基本的能力， 一下列举了<code>ChannelPipeline</code>的一些修改方法：</p>
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>addFirst addBefore addAfter addLast</td>
+<td>添加 ChannelHandler 到 ChannelPipeline.</td>
+</tr>
+<tr>
+<td>Remove</td>
+<td>从 ChannelPipeline 移除 ChannelHandler.</td>
+</tr>
+<tr>
+<td>Replace</td>
+<td>在 ChannelPipeline 替换另外一个 ChannelHandler</td>
+</tr>
+</tbody></table>
+<h3 id="③-ChannelHandler的执行和阻塞"><a href="#③-ChannelHandler的执行和阻塞" class="headerlink" title="③ ChannelHandler的执行和阻塞"></a>③ ChannelHandler的执行和阻塞</h3><p>通常<code>ChannelPipeline</code>中的每个<code>ChannelHandler</code>都是通过它（<code>ChannelPipeline</code>）的<code>EventLoop</code>线程来处理 传递给他的数据的，所以我们不能去阻塞这个线程，否则会对整体的 IO 操作产生负面影响。 但有时候不得已 需要使用阻塞的 API 来完成逻辑处理，对于这种情况，<code>ChannelPipeline</code>的某些方法支持接受一个<code>EventLoopGroup </code>类型的参数，我们可以通过自定义<code>EventLoopGroup</code>的方式，使<code>ChannelHandler</code>在我们的<code>EventLoopGroup</code>内处理数据。 这样一来，就可以避免阻塞线程的影响了。</p>
+<h3 id="④-触发事件"><a href="#④-触发事件" class="headerlink" title="④ 触发事件"></a>④ 触发事件</h3><p><code>ChannelPipeline</code>的API不仅有对<code>ChannelHandler</code>的增删改操作，还有对入站和出站操作的附加方法，如下：</p>
+<p><code>ChannelPipeline</code>的入站方法：</p>
+<table>
+<thead>
+<tr>
+<th align="left">方法</th>
+<th align="left">描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">fireChannelRegistered</td>
+<td align="left">调用ChannelPipeline中下一个ChannelInboundHandler的channelRegistered方法</td>
+</tr>
+<tr>
+<td align="left">fireChannelUnregistered</td>
+<td align="left">调用ChannelPipeline中下一个ChannelInboundHandler的channelUnregistered方法</td>
+</tr>
+<tr>
+<td align="left">fireChannelActive</td>
+<td align="left">调用ChannelPipeline中下一个ChannelInboundHandler的channelActive方法</td>
+</tr>
+<tr>
+<td align="left">fireChannelInactive</td>
+<td align="left">调用ChannelPipeline中下一个ChannelInboundHandler的channelInactive方法</td>
+</tr>
+<tr>
+<td align="left">fireExceptionCaught</td>
+<td align="left">调用ChannelPipeline中下一个ChannelInboundHandler的exceptionCaught方法</td>
+</tr>
+<tr>
+<td align="left">fireUserEventTriggered</td>
+<td align="left">调用ChannelPipeline中下一个ChannelInboundHandler的userEventTriggered方法</td>
+</tr>
+<tr>
+<td align="left">fireChannelRead</td>
+<td align="left">调用ChannelPipeline中下一个ChannelInboundHandler的channelRead方法</td>
+</tr>
+<tr>
+<td align="left">fireChannelReadComplete</td>
+<td align="left">调用ChannelPipeline中下一个ChannelInboundHandler的channelReadComplete方法</td>
+</tr>
+<tr>
+<td align="left">fireChannelWritabilityChanged</td>
+<td align="left">调用ChannelPipeline中下一个ChannelInboundHandler的channelWritabilityChanged方法</td>
+</tr>
+</tbody></table>
+<p><code>ChannelPipeline</code>的出站方法：</p>
+<table>
+<thead>
+<tr>
+<th align="left">方法</th>
+<th align="left">描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">bind</td>
+<td align="left">调用ChannelPipeline中下一个ChannelOutboundHandler的bind方法，将Channel与本地地址绑定</td>
+</tr>
+<tr>
+<td align="left">connect</td>
+<td align="left">调用ChannelPipeline中下一个ChannelOutboundHandler的connect方法，将Channel连接到远程节点</td>
+</tr>
+<tr>
+<td align="left">disconnect</td>
+<td align="left">调用ChannelPipeline中下一个ChannelOutboundHandler的disconnect方法，将Channel与远程连接断开</td>
+</tr>
+<tr>
+<td align="left">close</td>
+<td align="left">调用ChannelPipeline中下一个ChannelOutboundHandler的close方法，将Channel关闭</td>
+</tr>
+<tr>
+<td align="left">deregister</td>
+<td align="left">调用ChannelPipeline中下一个ChannelOutboundHandler的deregister方法，将Channel从其对应的EventLoop注销</td>
+</tr>
+<tr>
+<td align="left">flush</td>
+<td align="left">调用ChannelPipeline中下一个ChannelOutboundHandler的flush方法，将Channel的数据冲刷到远程节点</td>
+</tr>
+<tr>
+<td align="left">write</td>
+<td align="left">调用ChannelPipeline中下一个ChannelOutboundHandler的write方法，将数据写入Channel</td>
+</tr>
+<tr>
+<td align="left">writeAndFlush</td>
+<td align="left">先调用write方法，然后调用flush方法，将数据写入并刷回远程节点</td>
+</tr>
+<tr>
+<td align="left">read</td>
+<td align="left">调用ChannelPipeline中下一个ChannelOutboundHandler的read方法，从Channel中读取数据</td>
+</tr>
+</tbody></table>
+<h2 id="3-ChannelHandlerContext"><a href="#3-ChannelHandlerContext" class="headerlink" title="3. ChannelHandlerContext"></a>3. ChannelHandlerContext</h2><h3 id="①-ChannelHandlerContext基本用法"><a href="#①-ChannelHandlerContext基本用法" class="headerlink" title="① ChannelHandlerContext基本用法"></a>① ChannelHandlerContext基本用法</h3><p><code>ChannelHandlerContext</code>代表的是<code>ChannelHandler</code>和<code>ChannelPipeline</code>之间的关联，每当有<code>ChannelHandler </code>添加到<code>ChannelPipeline</code>中时，都会创建<code>ChannelHandlerContext</code>。**<code>ChannelHandlerContext</code>的主要功能是 管理它所关联的<code>ChannelHandler</code>与同一个<code>ChannelPipeline</code>中的其他<code>ChannelHandler</code>之间的交互**：</p>
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327115633870.png" alt="image-20220327115633870" style="zoom:80%;" />
+
+<p><code>ChannelHandlerContext</code>的大部分方法和<code>Channel</code>和<code>ChannelPipeline</code>相似，但有一个重要的区别是： 调用<code>Channel</code>或<code>ChannelPipeline</code>的方法其影响是会沿着整个 <code>ChannelPipeline</code> 进行传播：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//使用Chanel write</span></span><br><span class="line">Channel channel = ctx.channel();</span><br><span class="line">ctx.write(xxx);</span><br><span class="line"></span><br><span class="line"><span class="comment">//使用Pipeline write</span></span><br><span class="line">ChannelPipeline pipeline = ctx.pipeline();</span><br><span class="line">pipeline.write(xxx);</span><br></pre></td></tr></table></figure>
+
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327115640046.png" alt="image-20220327115640046" style="zoom:80%;" />
+
+<p>而调用 <code>ChannelHandlerContext</code> 的方法则是从其关联的 <code>ChannelHandler</code> 开始，并且只会传播给位于该<code>ChannelPipeline</code>中的下一个能够处理该事件的 <code>ChannelHandler</code>：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//使用ChannelContext write</span></span><br><span class="line">ChannelHandlerContext ctx = context;</span><br><span class="line">ctx.write(xxx);</span><br></pre></td></tr></table></figure>
+
+<img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327115646138.png" alt="image-20220327115646138" style="zoom:80%;" />
+
+<p>下面是一些比较重要的方法，有些和<code>ChannelPipeline</code>功能相似的方法就不再罗列了，各位同学可以直接查看原API。</p>
+<table>
+<thead>
+<tr>
+<th align="left">方法</th>
+<th align="left">描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">alloc</td>
+<td align="left">获取与当前ChannelHandlerContext所关联的Channel的ByteBufAllocator</td>
+</tr>
+<tr>
+<td align="left">handler</td>
+<td align="left">返回与当前ChannelHandlerContext绑定的ChannelHandler</td>
+</tr>
+<tr>
+<td align="left">pipeline</td>
+<td align="left">返回与当前ChannelHandlerContext关联的ChannelPipeline</td>
+</tr>
+<tr>
+<td align="left">…</td>
+<td align="left">…</td>
+</tr>
+</tbody></table>
+<h3 id="②-ChannelHandlerContext-的高级用法"><a href="#②-ChannelHandlerContext-的高级用法" class="headerlink" title="② ChannelHandlerContext 的高级用法"></a>② ChannelHandlerContext 的高级用法</h3><p>有时候我们需要在多个<code>ChannelPipeline</code>之间共享一个<code>ChannelHandler</code>，以此实现<strong>跨管道处理（获取）数据</strong> 的功能，此时的<code>ChannelHandler</code>属于多个<code>ChannelPipeline</code>，且会绑定到不同的<code>ChannelHandlerContext</code>上。 </p>
+<p><strong>在多个<code>ChannelPipeline</code>之间共享<code>ChannelHandler</code>我们需要使用 <code>@Sharable</code> 注解</strong>，这代表着它是一个共享的 <code>ChannelHandler</code>，如果一个<code>ChannelHandler</code>没有使用<code>@Sharable</code>注解却被用于多个<code>ChannelPipeline</code>，那么 将会触发异常。 还有非常重要的一点：<strong>一个<code>ChannelHandler</code>被用于多个<code>ChannelPipeline</code>肯定涉及到多线程 数据共享的问题，因此我们需要保证<code>ChannelHandler</code>的方法同步。</strong> 下面是一个很好的例子：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@ChannelHandler</span>.Sharable    </span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">UnsafeSharableChannelHandler</span> <span class="keyword">extends</span> <span class="title">ChannelInboundHandlerAdapter</span></span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">int</span> count;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">channelRead</span><span class="params">(ChannelHandlerContext ctx,Object msg)</span></span>&#123;</span><br><span class="line">        count++;</span><br><span class="line">        System.out.println(<span class="string">&quot;count : &quot;</span> + count);</span><br><span class="line">        ctx.fireChannelRead(msg);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>上面这个<code>ChannelHandler</code>标识了<code>@Sharable</code>注解，这代表它需要被用于多个<code>ChannelPipeline</code>之间</p>
+<p><strong>这段代码的问题是它持有状态: 一个实例变量 <code>count</code> 保持了方法调用的计数</strong>。将这个类的一个实例添加到 <code>ChannelPipeline</code> 并发访问通道时很可能产生错误。一个简单的解决方法就是给修改了<code>count</code>的变量的方法 <code>channelRead</code> 加<code>synchronized</code>关键字，确保即使在多个<code>ChannelPipeline</code>之间共享， <code>ChannelHandler</code>也能保证数据一致。</p>
+<h2 id="引用"><a href="#引用" class="headerlink" title="引用"></a>引用</h2><blockquote>
+<p>《Netty 实战》</p>
+</blockquote>
+
+                
+            </div>
+            <hr/>
+
+            
+
+    <div class="reprint" id="reprint-statement">
+        
+            <div class="reprint__author">
+                <span class="reprint-meta" style="font-weight: bold;">
+                    <i class="fas fa-user">
+                        文章作者:
+                    </i>
+                </span>
+                <span class="reprint-info">
+                    <a href="/about" rel="external nofollow noreferrer">Gtwff</a>
+                </span>
+            </div>
+            <div class="reprint__type">
+                <span class="reprint-meta" style="font-weight: bold;">
+                    <i class="fas fa-link">
+                        文章链接:
+                    </i>
+                </span>
+                <span class="reprint-info">
+                    <a href="https://kuangtianyu.github.io/2022/01/02/Netty/ChannelHandler-%E4%B8%8E-ChannelPipeline-%E8%AF%A6%E8%A7%A3/">https://kuangtianyu.github.io/2022/01/02/Netty/ChannelHandler-%E4%B8%8E-ChannelPipeline-%E8%AF%A6%E8%A7%A3/</a>
+                </span>
+            </div>
+            <div class="reprint__notice">
+                <span class="reprint-meta" style="font-weight: bold;">
+                    <i class="fas fa-copyright">
+                        版权声明:
+                    </i>
+                </span>
+                <span class="reprint-info">
+                    本博客所有文章除特別声明外，均采用
+                    <a href="https://creativecommons.org/licenses/by/4.0/deed.zh" rel="external nofollow noreferrer" target="_blank">CC BY 4.0</a>
+                    许可协议。转载请注明来源
+                    <a href="/about" target="_blank">Gtwff</a>
+                    !
+                </span>
+            </div>
+        
+    </div>
+
+    <script async defer>
+      document.addEventListener("copy", function (e) {
+        let toastHTML = '<span>复制成功，请遵循本文的转载规则</span><button class="btn-flat toast-action" onclick="navToReprintStatement()" style="font-size: smaller">查看</a>';
+        M.toast({html: toastHTML})
+      });
+
+      function navToReprintStatement() {
+        $("html, body").animate({scrollTop: $("#reprint-statement").offset().top - 80}, 800);
+      }
+    </script>
+
+
+
+            <div class="tag_share" style="display: block;">
+                <div class="post-meta__tag-list" style="display: inline-block;">
+                    
+                        <div class="article-tag">
+                            
+                                <a href="/tags/ChannelHandler-%E4%B8%8E-ChannelPipeline-%E8%AF%A6%E8%A7%A3/">
+                                    <span class="chip bg-color">ChannelHandler 与 ChannelPipeline 详解</span>
+                                </a>
+                            
+                        </div>
+                    
+                </div>
+                <div class="post_share" style="zoom: 80%; width: fit-content; display: inline-block; float: right; margin: -0.15rem 0;">
+                    <link rel="stylesheet" type="text/css" href="/libs/share/css/share.min.css">
+<div id="article-share">
+
+    
+    <div class="social-share" data-sites="twitter,facebook,google,qq,qzone,wechat,weibo,douban,linkedin" data-wechat-qrcode-helper="<p>微信扫一扫即可分享！</p>"></div>
+    <script src="/libs/share/js/social-share.min.js"></script>
+    
+
+    
+
+</div>
+
+                </div>
+            </div>
+            
+                <style>
+    #reward {
+        margin: 40px 0;
+        text-align: center;
+    }
+
+    #reward .reward-link {
+        font-size: 1.4rem;
+        line-height: 38px;
+    }
+
+    #reward .btn-floating:hover {
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2), 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    #rewardModal {
+        width: 320px;
+        height: 350px;
+    }
+
+    #rewardModal .reward-title {
+        margin: 15px auto;
+        padding-bottom: 5px;
+    }
+
+    #rewardModal .modal-content {
+        padding: 10px;
+    }
+
+    #rewardModal .close {
+        position: absolute;
+        right: 15px;
+        top: 15px;
+        color: rgba(0, 0, 0, 0.5);
+        font-size: 1.3rem;
+        line-height: 20px;
+        cursor: pointer;
+    }
+
+    #rewardModal .close:hover {
+        color: #ef5350;
+        transform: scale(1.3);
+        -moz-transform:scale(1.3);
+        -webkit-transform:scale(1.3);
+        -o-transform:scale(1.3);
+    }
+
+    #rewardModal .reward-tabs {
+        margin: 0 auto;
+        width: 210px;
+    }
+
+    .reward-tabs .tabs {
+        height: 38px;
+        margin: 10px auto;
+        padding-left: 0;
+    }
+
+    .reward-content ul {
+        padding-left: 0 !important;
+    }
+
+    .reward-tabs .tabs .tab {
+        height: 38px;
+        line-height: 38px;
+    }
+
+    .reward-tabs .tab a {
+        color: #fff;
+        background-color: #ccc;
+    }
+
+    .reward-tabs .tab a:hover {
+        background-color: #ccc;
+        color: #fff;
+    }
+
+    .reward-tabs .wechat-tab .active {
+        color: #fff !important;
+        background-color: #22AB38 !important;
+    }
+
+    .reward-tabs .alipay-tab .active {
+        color: #fff !important;
+        background-color: #019FE8 !important;
+    }
+
+    .reward-tabs .reward-img {
+        width: 210px;
+        height: 210px;
+    }
+</style>
+
+<div id="reward">
+    <a href="#rewardModal" class="reward-link modal-trigger btn-floating btn-medium waves-effect waves-light red">赏</a>
+
+    <!-- Modal Structure -->
+    <div id="rewardModal" class="modal">
+        <div class="modal-content">
+            <a class="close modal-close"><i class="fas fa-times"></i></a>
+            <h4 class="reward-title">你的赏识是我前进的动力</h4>
+            <div class="reward-content">
+                <div class="reward-tabs">
+                    <ul class="tabs row">
+                        <li class="tab col s6 alipay-tab waves-effect waves-light"><a href="#alipay">支付宝</a></li>
+                        <li class="tab col s6 wechat-tab waves-effect waves-light"><a href="#wechat">微 信</a></li>
+                    </ul>
+                    <div id="alipay">
+                        <img src="/medias/reward/alipay.jpg" class="reward-img" alt="支付宝打赏二维码">
+                    </div>
+                    <div id="wechat">
+                        <img src="/medias/reward/wechat.png" class="reward-img" alt="微信打赏二维码">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(function () {
+        $('.tabs').tabs();
+    });
+</script>
+
+            
+        </div>
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+<article id="prenext-posts" class="prev-next articles">
+    <div class="row article-row">
+        
+        <div class="article col s12 m6" data-aos="fade-up">
+            <div class="article-badge left-badge text-color">
+                <i class="fas fa-chevron-left"></i>&nbsp;上一篇</div>
+            <div class="card">
+                <a href="/2022/01/02/Netty/Netty-Reactor-%E7%BA%BF%E7%A8%8B%E6%A8%A1%E5%9E%8B%E4%B8%8E-EventLoop-%E8%AF%A6%E8%A7%A3/">
+                    <div class="card-image">
+                        
+                        
+                        <img src="/medias/featureimages/13.jpg" class="responsive-img" alt="Netty Reactor 线程模型与 EventLoop 详解">
+                        
+                        <span class="card-title">Netty Reactor 线程模型与 EventLoop 详解</span>
+                    </div>
+                </a>
+                <div class="card-content article-content">
+                    <div class="summary block-with-text">
+                        
+                            
+                        
+                    </div>
+                    <div class="publish-info">
+                        <span class="publish-date">
+                            <i class="far fa-clock fa-fw icon-date"></i>2022-01-02
+                        </span>
+                        <span class="publish-author">
+                            
+                            <i class="fas fa-bookmark fa-fw icon-category"></i>
+                            
+                            <a href="/categories/Netty/" class="post-category">
+                                    Netty
+                                </a>
+                            
+                            
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="card-action article-tags">
+                    
+                    <a href="/tags/Netty-Reactor%E3%80%81-EventLoop/">
+                        <span class="chip bg-color">Netty Reactor、 EventLoop</span>
+                    </a>
+                    
+                </div>
+                
+            </div>
+        </div>
+        
+        
+        <div class="article col s12 m6" data-aos="fade-up">
+            <div class="article-badge right-badge text-color">
+                下一篇&nbsp;<i class="fas fa-chevron-right"></i>
+            </div>
+            <div class="card">
+                <a href="/2022/01/02/Netty/ByteBuf-%E8%AF%A6%E8%A7%A3/">
+                    <div class="card-image">
+                        
+                        
+                        <img src="/medias/featureimages/2.jpg" class="responsive-img" alt="ByteBuf 详解">
+                        
+                        <span class="card-title">ByteBuf 详解</span>
+                    </div>
+                </a>
+                <div class="card-content article-content">
+                    <div class="summary block-with-text">
+                        
+                            
+                        
+                    </div>
+                    <div class="publish-info">
+                            <span class="publish-date">
+                                <i class="far fa-clock fa-fw icon-date"></i>2022-01-02
+                            </span>
+                        <span class="publish-author">
+                            
+                            <i class="fas fa-bookmark fa-fw icon-category"></i>
+                            
+                            <a href="/categories/Netty/" class="post-category">
+                                    Netty
+                                </a>
+                            
+                            
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="card-action article-tags">
+                    
+                    <a href="/tags/ByteBuf-%E8%AF%A6%E8%A7%A3/">
+                        <span class="chip bg-color">ByteBuf 详解</span>
+                    </a>
+                    
+                </div>
+                
+            </div>
+        </div>
+        
+    </div>
+</article>
+
+</div>
+
+
+
+<!-- 代码块功能依赖 -->
+<script type="text/javascript" src="/libs/codeBlock/codeBlockFuction.js"></script>
+
+
+
+<!-- 代码语言 -->
+
+<script type="text/javascript" src="/libs/codeBlock/codeLang.js"></script>
+
+
+<!-- 代码块复制 -->
+
+<script type="text/javascript" src="/libs/codeBlock/codeCopy.js"></script>
+
+
+<!-- 代码块收缩 -->
+
+<script type="text/javascript" src="/libs/codeBlock/codeShrink.js"></script>
+
+
+
+    </div>
+    <div id="toc-aside" class="expanded col l3 hide-on-med-and-down">
+        <div class="toc-widget card" style="background-color: white;">
+            <div class="toc-title"><i class="far fa-list-alt"></i>&nbsp;&nbsp;目录</div>
+            <div id="toc-content"></div>
+        </div>
+    </div>
+</div>
+
+<!-- TOC 悬浮按钮. -->
+
+<div id="floating-toc-btn" class="hide-on-med-and-down">
+    <a class="btn-floating btn-large bg-color">
+        <i class="fas fa-list-ul"></i>
+    </a>
+</div>
+
+
+<script src="/libs/tocbot/tocbot.min.js"></script>
+<script>
+    $(function () {
+        tocbot.init({
+            tocSelector: '#toc-content',
+            contentSelector: '#articleContent',
+            headingsOffset: -($(window).height() * 0.4 - 45),
+            collapseDepth: Number('0'),
+            headingSelector: 'h2, h3, h4'
+        });
+
+        // Set scroll toc fixed.
+        let tocHeight = parseInt($(window).height() * 0.4 - 64);
+        let $tocWidget = $('.toc-widget');
+        $(window).scroll(function () {
+            let scroll = $(window).scrollTop();
+            /* add post toc fixed. */
+            if (scroll > tocHeight) {
+                $tocWidget.addClass('toc-fixed');
+            } else {
+                $tocWidget.removeClass('toc-fixed');
+            }
+        });
+
+        
+        /* 修复文章卡片 div 的宽度. */
+        let fixPostCardWidth = function (srcId, targetId) {
+            let srcDiv = $('#' + srcId);
+            if (srcDiv.length === 0) {
+                return;
+            }
+
+            let w = srcDiv.width();
+            if (w >= 450) {
+                w = w + 21;
+            } else if (w >= 350 && w < 450) {
+                w = w + 18;
+            } else if (w >= 300 && w < 350) {
+                w = w + 16;
+            } else {
+                w = w + 14;
+            }
+            $('#' + targetId).width(w);
+        };
+
+        // 切换TOC目录展开收缩的相关操作.
+        const expandedClass = 'expanded';
+        let $tocAside = $('#toc-aside');
+        let $mainContent = $('#main-content');
+        $('#floating-toc-btn .btn-floating').click(function () {
+            if ($tocAside.hasClass(expandedClass)) {
+                $tocAside.removeClass(expandedClass).hide();
+                $mainContent.removeClass('l9');
+            } else {
+                $tocAside.addClass(expandedClass).show();
+                $mainContent.addClass('l9');
+            }
+            fixPostCardWidth('artDetail', 'prenext-posts');
+        });
+        
+    });
+</script>
+
+    
+
+</main>
+
+
+
+
+    <footer class="page-footer bg-color">
+    
+        <link rel="stylesheet" href="/libs/aplayer/APlayer.min.css">
+<style>
+    .aplayer .aplayer-lrc p {
+        
+        display: none;
+        
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 16px !important;
+    }
+
+    .aplayer .aplayer-lrc p.aplayer-lrc-current {
+        
+        display: none;
+        
+        font-size: 15px;
+        color: #42b983;
+    }
+
+    
+    .aplayer.aplayer-fixed.aplayer-narrow .aplayer-body {
+        left: -66px !important;
+    }
+
+    .aplayer.aplayer-fixed.aplayer-narrow .aplayer-body:hover {
+        left: 0px !important;
+    }
+
+    
+</style>
+<div class="">
+    
+    <div class="row">
+        <meting-js class="col l8 offset-l2 m10 offset-m1 s12"
+                   server="netease"
+                   type="playlist"
+                   id="503838841"
+                   fixed='true'
+                   autoplay='false'
+                   theme='#42b983'
+                   loop='all'
+                   order='random'
+                   preload='auto'
+                   volume='0.7'
+                   list-folded='true'
+        >
+        </meting-js>
+    </div>
+</div>
+
+<script src="/libs/aplayer/APlayer.min.js"></script>
+<script src="/libs/aplayer/Meting.min.js"></script>
+
+    
+
+    <div class="container row center-align"
+         style="margin-bottom: 0px !important;">
+        <div class="col s12 m8 l8 copy-right">
+            Copyright&nbsp;&copy;
+            
+                <span id="year">2019-2022</span>
+            
+            <a href="/about" target="_blank">Sky</a>
+            |&nbsp;Powered by&nbsp;<a href="https://hexo.io/" target="_blank">Hexo</a>
+            |&nbsp;Theme&nbsp;<a href="https://github.com/blinkfox/hexo-theme-matery" target="_blank">Matery</a>
+            <br>
+            
+            
+            
+                
+            
+            
+                <span id="busuanzi_container_site_pv">
+                &nbsp;|&nbsp;<i class="far fa-eye"></i>&nbsp;总访问量:&nbsp;
+                    <span id="busuanzi_value_site_pv" class="white-color"></span>
+            </span>
+            
+            
+                <span id="busuanzi_container_site_uv">
+                &nbsp;|&nbsp;<i class="fas fa-users"></i>&nbsp;总访问人数:&nbsp;
+                    <span id="busuanzi_value_site_uv" class="white-color"></span>
+            </span>
+            
+            <br>
+
+            <!-- 运行天数提醒. -->
+            
+            <br>
+            
+        </div>
+        <div class="col s12 m4 l4 social-link social-statis">
+    <a href="https://github.com/kuangtianyu" class="tooltipped" target="_blank" data-tooltip="访问我的GitHub" data-position="top" data-delay="50">
+        <i class="fab fa-github"></i>
+    </a>
+
+
+
+    <a href="mailto:1575235124@qq.com" class="tooltipped" target="_blank" data-tooltip="邮件联系我" data-position="top" data-delay="50">
+        <i class="fas fa-envelope-open"></i>
+    </a>
+
+
+
+
+
+
+
+    <a href="tencent://AddContact/?fromId=50&fromSubId=1&subcmd=all&uin=1575235124" class="tooltipped" target="_blank" data-tooltip="QQ联系我: 1575235124" data-position="top" data-delay="50">
+        <i class="fab fa-qq"></i>
+    </a>
+
+
+
+
+
+
+
+    <a href="/atom.xml" class="tooltipped" target="_blank" data-tooltip="RSS 订阅" data-position="top" data-delay="50">
+        <i class="fas fa-rss"></i>
+    </a>
+
+</div>
+    </div>
+</footer>
+
+<div class="progress-bar"></div>
+
+
+    <!-- 搜索遮罩框 -->
+<div id="searchModal" class="modal">
+    <div class="modal-content">
+        <div class="search-header">
+            <span class="title"><i class="fas fa-search"></i>&nbsp;&nbsp;搜索</span>
+            <input type="search" id="searchInput" name="s" placeholder="请输入搜索的关键字"
+                   class="search-input">
+        </div>
+        <div id="searchResult"></div>
+    </div>
+</div>
+
+<script type="text/javascript">
+$(function () {
+    var searchFunc = function (path, search_id, content_id) {
+        'use strict';
+        $.ajax({
+            url: path,
+            dataType: "xml",
+            success: function (xmlResponse) {
+                // get the contents from search data
+                var datas = $("entry", xmlResponse).map(function () {
+                    return {
+                        title: $("title", this).text(),
+                        content: $("content", this).text(),
+                        url: $("url", this).text()
+                    };
+                }).get();
+                var $input = document.getElementById(search_id);
+                var $resultContent = document.getElementById(content_id);
+                $input.addEventListener('input', function () {
+                    var str = '<ul class=\"search-result-list\">';
+                    var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+                    $resultContent.innerHTML = "";
+                    if (this.value.trim().length <= 0) {
+                        return;
+                    }
+                    // perform local searching
+                    datas.forEach(function (data) {
+                        var isMatch = true;
+                        var data_title = data.title.trim().toLowerCase();
+                        var data_content = data.content.trim().replace(/<[^>]+>/g, "").toLowerCase();
+                        var data_url = data.url;
+                        data_url = data_url.indexOf('/') === 0 ? data.url : '/' + data_url;
+                        var index_title = -1;
+                        var index_content = -1;
+                        var first_occur = -1;
+                        // only match artiles with not empty titles and contents
+                        if (data_title !== '' && data_content !== '') {
+                            keywords.forEach(function (keyword, i) {
+                                index_title = data_title.indexOf(keyword);
+                                index_content = data_content.indexOf(keyword);
+                                if (index_title < 0 && index_content < 0) {
+                                    isMatch = false;
+                                } else {
+                                    if (index_content < 0) {
+                                        index_content = 0;
+                                    }
+                                    if (i === 0) {
+                                        first_occur = index_content;
+                                    }
+                                }
+                            });
+                        }
+                        // show search results
+                        if (isMatch) {
+                            str += "<li><a href='" + data_url + "' class='search-result-title'>" + data_title + "</a>";
+                            var content = data.content.trim().replace(/<[^>]+>/g, "");
+                            if (first_occur >= 0) {
+                                // cut out 100 characters
+                                var start = first_occur - 20;
+                                var end = first_occur + 80;
+                                if (start < 0) {
+                                    start = 0;
+                                }
+                                if (start === 0) {
+                                    end = 100;
+                                }
+                                if (end > content.length) {
+                                    end = content.length;
+                                }
+                                var match_content = content.substr(start, end);
+                                // highlight all keywords
+                                keywords.forEach(function (keyword) {
+                                    var regS = new RegExp(keyword, "gi");
+                                    match_content = match_content.replace(regS, "<em class=\"search-keyword\">" + keyword + "</em>");
+                                });
+
+                                str += "<p class=\"search-result\">" + match_content + "...</p>"
+                            }
+                            str += "</li>";
+                        }
+                    });
+                    str += "</ul>";
+                    $resultContent.innerHTML = str;
+                });
+            }
+        });
+    };
+
+    searchFunc('/search.xml', 'searchInput', 'searchResult');
+});
+</script>
+
+    <!-- 回到顶部按钮 -->
+<div id="backTop" class="top-scroll">
+    <a class="btn-floating btn-large waves-effect waves-light" href="#!">
+        <i class="fas fa-arrow-up"></i>
+    </a>
+</div>
+
+
+    <script src="/libs/materialize/materialize.min.js"></script>
+    <script src="/libs/masonry/masonry.pkgd.min.js"></script>
+    <script src="/libs/aos/aos.js"></script>
+    <script src="/libs/scrollprogress/scrollProgress.min.js"></script>
+    <script src="/libs/lightGallery/js/lightgallery-all.min.js"></script>
+    <script src="/js/matery.js"></script>
+
+    
+
+    
+
+    <!-- 雪花特效 -->
+    
+
+    <!-- 鼠标星星特效 -->
+     
+        <script type="text/javascript">
+            // 只在桌面版网页启用特效
+            var windowWidth = $(window).width();
+            if (windowWidth > 768) {
+                document.write('<script type="text/javascript" src="/libs/others/star.js"><\/script>');
+            }
+        </script>
+    
+
+    
+
+    <!-- Baidu Analytics -->
+
+    <!-- Baidu Push -->
+
+<script>
+    (function () {
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        } else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+    
+    <script src="/libs/others/clicklove.js" async="async"></script>
+    
+    
+    <script async src="/libs/others/busuanzi.pure.mini.js"></script>
+    
+
+    
+
+    
+
+    <!--腾讯兔小巢-->
+    
+    
+
+    
+
+    
+    <script type="text/javascript" src="/libs/background/ribbon-dynamic.js" async="async"></script>
+    
+
+    
+    <script src="/libs/instantpage/instantpage.js" type="module"></script>
+    
+
+</body>
+
+</html>
