@@ -623,7 +623,7 @@
 
 <p>其值为0x0016,掐指一算，也就是22。需要注意的是，这实际上只有21项常量。索引为范围是1-21。为什么呢？</p>
 <p>通常我们写代码时都是从0开始的，但是这里的常量池却是从1开始，因为它把第0项常量空出来了，这是为了满足后面某些指向常量池的索引值的数据在特定情况下需要表达“不引用任何一个常量池项目”的含义，这种情况可以用索引值0来表示。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">int [] arr = new int[10] </span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">int [] arr &#x3D; new int[10] <span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p> <strong>常量池表</strong></p>
 <p>constant_pool 是一种表结构， 1~ constant_pool_count - 1 为索引，表明了后面有多少个常量项。常量池主要存放两大类常量：字面量（Literal）和符号引用（Symbolic References)。</p>
@@ -857,7 +857,11 @@
 </li>
 <li><p>属性表集合：一个字段还可能拥有一些属性，用于存储更多的额外信息。比如初始化值、一些注释信息等。属性个数存放在attribute_count中，属性具体内容存放在attributes数组中。</p>
 <p>  以常量属性为例，结构为：</p>
-  <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">ConstantValue_attribute &#123;</span><br><span class="line">	u2 attribute_name_index;</span><br><span class="line">	u4 attribute_length;</span><br><span class="line">	u2 constantvalue_index;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+  <pre class="line-numbers language-none"><code class="language-none">ConstantValue_attribute &#123;
+	u2 attribute_name_index;
+	u4 attribute_length;
+	u2 constantvalue_index;
+&#125;<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <blockquote>
 <p>说明：对于常量属性而言：attribute_length的值恒为 2</p>

@@ -502,14 +502,17 @@
 <p>想要实现分布式锁，必须要求 Redis 有「互斥」的能力，我们可以使用 SETNX 命令，这个命令表示<strong>SET</strong> if <strong>N</strong>ot e<strong>X</strong>ists，即如果 key 不存在，才会设置它的值，否则什么也不做。</p>
 <p>两个客户端进程可以执行这个命令，达到互斥，就可以实现一个分布式锁。</p>
 <p>客户端 1 申请加锁，加锁成功：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1:6379&gt; SETNX lock 1</span><br><span class="line">(integer) 1     // 客户端1，加锁成功</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">127.0.0.1:6379&gt; SETNX lock 1
+(integer) 1     &#x2F;&#x2F; 客户端1，加锁成功<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span></span></code></pre>
 
 <p>客户端 2 申请加锁，因为它后到达，加锁失败：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1:6379&gt; SETNX lock 1</span><br><span class="line">(integer) 0     // 客户端2，加锁失败</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">127.0.0.1:6379&gt; SETNX lock 1
+(integer) 0     &#x2F;&#x2F; 客户端2，加锁失败<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span></span></code></pre>
 
 <p>此时，加锁成功的客户端，就可以去操作「共享资源」，例如，修改 MySQL 的某一行数据，或者调用一个 API 请求。操作完成后，还要及时释放锁，给后来者让出操作共享资源的机会。如何释放锁呢？</p>
 <p>也很简单，直接使用 DEL 命令删除这个 key 即可：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1:6379&gt; DEL lock // 释放锁</span><br><span class="line">(integer) 1</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">127.0.0.1:6379&gt; DEL lock &#x2F;&#x2F; 释放锁
+(integer) 1<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span></span></code></pre>
 
 <p>这个逻辑非常简单，整体的路程就是这样：</p>
 <img src="https://gitee.com/kuangtf/blogImage/raw/master/img/分布式锁1.png" style="zoom:80%;" />
@@ -523,7 +526,10 @@
 <p>怎么解决这个问题呢？</p>
 <h2 id="如何避免死锁"><a href="#如何避免死锁" class="headerlink" title="如何避免死锁"></a>如何避免死锁</h2><p>我们很容易想到的方案是，在申请锁时，给这把锁设置一个「租期」。</p>
 <p>在 Redis 中实现时，就是给这个 key 设置一个「过期时间」。这里我们假设，操作共享资源的时间不会超过 10s，那么在加锁时，给这个 key 设置 10s 过期即可：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1:6379&gt; SETNX lock 1    // 加锁</span><br><span class="line">(integer) 1</span><br><span class="line">127.0.0.1:6379&gt; EXPIRE lock 10  // 10s后自动过期</span><br><span class="line">(integer) 1</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">127.0.0.1:6379&gt; SETNX lock 1    &#x2F;&#x2F; 加锁
+(integer) 1
+127.0.0.1:6379&gt; EXPIRE lock 10  &#x2F;&#x2F; 10s后自动过期
+(integer) 1<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>这样一来，无论客户端是否异常，这个锁都可以在 10s 后被「自动释放」，其它客户端依旧可以拿到锁。</p>
 <p>但这样真的没问题吗？还是有问题。</p>
@@ -536,7 +542,9 @@
 <p>总之，这两条命令不能保证是原子操作（一起成功），就有潜在的风险导致过期时间设置失败，依旧发生「死锁」问题。怎么办？</p>
 <p>在 Redis 2.6.12 版本之前，我们需要想尽办法，保证 SETNX 和 EXPIRE 原子性执行，还要考虑各种异常情况如何处理。</p>
 <p>但在 Redis 2.6.12 之后，Redis 扩展了 SET 命令的参数，用这一条命令就可以了：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">// 一条命令保证原子性执行</span><br><span class="line">127.0.0.1:6379&gt; SET lock 1 EX 10 NX</span><br><span class="line">OK</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">&#x2F;&#x2F; 一条命令保证原子性执行
+127.0.0.1:6379&gt; SET lock 1 EX 10 NX
+OK<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span></span></code></pre>
 
 <p>这样就解决了死锁问题，也比较简单。</p>
 <p>我们再来看分析下，它还有什么问题？</p>
@@ -564,13 +572,17 @@
 <p>重点在于，每个客户端在释放锁时，都是「无脑」操作，并没有检查这把锁是否还「归自己持有」，所以就会发生释放别人锁的风险，这样的解锁流程，很不「严谨」！</p>
 <p>如何解决这个问题呢？</p>
 <h2 id="锁被别人释放了怎么办"><a href="#锁被别人释放了怎么办" class="headerlink" title="锁被别人释放了怎么办"></a>锁被别人释放了怎么办</h2><p>解决办法是：客户端在加锁时，设置一个只有自己知道的「唯一标识」进去。例如，可以是自己的线程 ID，也可以是一个 UUID（随机且唯一），这里我们以 UUID 举例：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">// 锁的VALUE设置为UUID</span><br><span class="line">127.0.0.1:6379&gt; SET lock $uuid EX 20 NX</span><br><span class="line">OK</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">&#x2F;&#x2F; 锁的VALUE设置为UUID
+127.0.0.1:6379&gt; SET lock $uuid EX 20 NX
+OK<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span></span></code></pre>
 
 <blockquote>
 <p>这里假设 20s 操作共享时间完全足够，先不考虑锁自动过期的问题。</p>
 </blockquote>
 <p>之后，在释放锁时，要先判断这把锁是否还归自己持有，伪代码可以这么写：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">// 锁是自己的，才释放</span><br><span class="line">if redis.get(&quot;lock&quot;) == $uuid:</span><br><span class="line">    redis.del(&quot;lock&quot;)</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">&#x2F;&#x2F; 锁是自己的，才释放
+if redis.get(&quot;lock&quot;) &#x3D;&#x3D; $uuid:
+    redis.del(&quot;lock&quot;)<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span></span></code></pre>
 
 <p>这里释放锁使用的是 GET + DEL 两条命令，这时，又会遇到我们前面讲的原子性问题了。</p>
 <ol>
@@ -583,7 +595,13 @@
 <img src="https://gitee.com/kuangtf/blogImage/raw/master/img/分布式锁2.png" style="zoom:80%;" />
 
 <p>安全释放锁的 Lua 脚本如下：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">// 判断锁是自己的，才释放</span><br><span class="line">if redis.call(&quot;GET&quot;,KEYS[1]) == ARGV[1]</span><br><span class="line">then</span><br><span class="line">    return redis.call(&quot;DEL&quot;,KEYS[1])</span><br><span class="line">else</span><br><span class="line">    return 0</span><br><span class="line">end</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">&#x2F;&#x2F; 判断锁是自己的，才释放
+if redis.call(&quot;GET&quot;,KEYS[1]) &#x3D;&#x3D; ARGV[1]
+then
+    return redis.call(&quot;DEL&quot;,KEYS[1])
+else
+    return 0
+end<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>好了，这样一路优化，整个的加锁、解锁的流程就更「严谨」了。</p>
 <p>这里我们先小结一下，基于 Redis 实现的分布式锁，一个严谨的的流程如下：</p>

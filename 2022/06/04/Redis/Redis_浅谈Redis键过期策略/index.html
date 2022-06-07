@@ -498,20 +498,42 @@
 <li>pexpireat key millisecondsTimestamp：设置 key 在某个时间戳（精确到毫秒）之后过期；</li>
 </ul>
 <p>下面我们依次来演示这几种过期设置吧</p>
-<h3 id="expire：N-秒后过期"><a href="#expire：N-秒后过期" class="headerlink" title="expire：N 秒后过期"></a>expire：N 秒后过期</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1:6379&gt; set key value</span><br><span class="line">OK</span><br><span class="line">127.0.0.1:6379&gt; expire key 100</span><br><span class="line">(integer) 1</span><br><span class="line">127.0.0.1:6379&gt; ttl key</span><br><span class="line">(integer) 97</span><br></pre></td></tr></table></figure>
+<h3 id="expire：N-秒后过期"><a href="#expire：N-秒后过期" class="headerlink" title="expire：N 秒后过期"></a>expire：N 秒后过期</h3><pre class="line-numbers language-shell" data-language="shell"><code class="language-shell"><span class="token number">127.0</span>.0.1:637<span class="token operator"><span class="token file-descriptor important">9</span>></span> <span class="token builtin class-name">set</span> key value
+OK
+<span class="token number">127.0</span>.0.1:637<span class="token operator"><span class="token file-descriptor important">9</span>></span> expire key <span class="token number">100</span>
+<span class="token punctuation">(</span>integer<span class="token punctuation">)</span> <span class="token number">1</span>
+<span class="token number">127.0</span>.0.1:637<span class="token operator"><span class="token file-descriptor important">9</span>></span> ttl key
+<span class="token punctuation">(</span>integer<span class="token punctuation">)</span> <span class="token number">97</span><span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>其中命令 ttl 的全称是 Time To Live，表示此键值在 n 秒后过期。例如，上面的结果 97 表示 key 在 97s 后过期。</p>
-<h3 id="pexpire：N-毫秒后过期"><a href="#pexpire：N-毫秒后过期" class="headerlink" title="pexpire：N 毫秒后过期"></a>pexpire：N 毫秒后过期</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1:6379&gt; set key2 value2</span><br><span class="line">OK</span><br><span class="line">127.0.0.1:6379&gt; pexpire key2 100000</span><br><span class="line">(integer) 1</span><br><span class="line">127.0.0.1:6379&gt; pttl key2</span><br><span class="line">(integer) 94524</span><br></pre></td></tr></table></figure>
+<h3 id="pexpire：N-毫秒后过期"><a href="#pexpire：N-毫秒后过期" class="headerlink" title="pexpire：N 毫秒后过期"></a>pexpire：N 毫秒后过期</h3><pre class="line-numbers language-shell" data-language="shell"><code class="language-shell"><span class="token number">127.0</span>.0.1:637<span class="token operator"><span class="token file-descriptor important">9</span>></span> <span class="token builtin class-name">set</span> key2 value2
+OK
+<span class="token number">127.0</span>.0.1:637<span class="token operator"><span class="token file-descriptor important">9</span>></span> pexpire key2 <span class="token number">100000</span>
+<span class="token punctuation">(</span>integer<span class="token punctuation">)</span> <span class="token number">1</span>
+<span class="token number">127.0</span>.0.1:637<span class="token operator"><span class="token file-descriptor important">9</span>></span> pttl key2
+<span class="token punctuation">(</span>integer<span class="token punctuation">)</span> <span class="token number">94524</span><span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>其中 <code>pexpire key2 100000</code> 表示设置 key2 在 100000 毫秒（100 秒）后过期。</p>
-<h3 id="expireat：过期时间戳精确到秒"><a href="#expireat：过期时间戳精确到秒" class="headerlink" title="expireat：过期时间戳精确到秒"></a>expireat：过期时间戳精确到秒</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1:6379&gt; set key3 value3</span><br><span class="line">OK</span><br><span class="line">127.0.0.1:6379&gt; expireat key3 1573472683</span><br><span class="line">(integer) 1</span><br><span class="line">127.0.0.1:6379&gt; ttl key3</span><br><span class="line">(integer) 67</span><br></pre></td></tr></table></figure>
+<h3 id="expireat：过期时间戳精确到秒"><a href="#expireat：过期时间戳精确到秒" class="headerlink" title="expireat：过期时间戳精确到秒"></a>expireat：过期时间戳精确到秒</h3><pre class="line-numbers language-shell" data-language="shell"><code class="language-shell"><span class="token number">127.0</span>.0.1:637<span class="token operator"><span class="token file-descriptor important">9</span>></span> <span class="token builtin class-name">set</span> key3 value3
+OK
+<span class="token number">127.0</span>.0.1:637<span class="token operator"><span class="token file-descriptor important">9</span>></span> expireat key3 <span class="token number">1573472683</span>
+<span class="token punctuation">(</span>integer<span class="token punctuation">)</span> <span class="token number">1</span>
+<span class="token number">127.0</span>.0.1:637<span class="token operator"><span class="token file-descriptor important">9</span>></span> ttl key3
+<span class="token punctuation">(</span>integer<span class="token punctuation">)</span> <span class="token number">67</span><span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>其中 <code>expireat key3 1573472683</code> 表示 key3 在时间戳 1573472683 后过期（精确到秒），使用 ttl 查询可以发现在 67s 后 key3 会过期。</p>
 <blockquote>
 <p>小贴士：在 Redis 可以使用 time 命令查询当前时间的时间戳（精确到秒），示例如下：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1:6379&gt; time</span><br><span class="line">1. &quot;1573472563&quot;</span><br><span class="line">2. &quot;248426&quot;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-shell" data-language="shell"><code class="language-shell"><span class="token number">127.0</span>.0.1:637<span class="token operator"><span class="token file-descriptor important">9</span>></span> <span class="token function">time</span>
+<span class="token number">1</span>. <span class="token string">"1573472563"</span>
+<span class="token number">2</span>. <span class="token string">"248426"</span><span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span></span></code></pre>
 </blockquote>
-<h3 id="pexpireat：过期时间戳精确到毫秒"><a href="#pexpireat：过期时间戳精确到毫秒" class="headerlink" title="pexpireat：过期时间戳精确到毫秒"></a>pexpireat：过期时间戳精确到毫秒</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1:6379&gt; set key4 value4</span><br><span class="line">OK</span><br><span class="line">127.0.0.1:6379&gt; pexpireat key4 1573472683000</span><br><span class="line">(integer) 1</span><br><span class="line">127.0.0.1:6379&gt; pttl key4</span><br><span class="line">(integer) 3522</span><br></pre></td></tr></table></figure>
+<h3 id="pexpireat：过期时间戳精确到毫秒"><a href="#pexpireat：过期时间戳精确到毫秒" class="headerlink" title="pexpireat：过期时间戳精确到毫秒"></a>pexpireat：过期时间戳精确到毫秒</h3><pre class="line-numbers language-shell" data-language="shell"><code class="language-shell"><span class="token number">127.0</span>.0.1:637<span class="token operator"><span class="token file-descriptor important">9</span>></span> <span class="token builtin class-name">set</span> key4 value4
+OK
+<span class="token number">127.0</span>.0.1:637<span class="token operator"><span class="token file-descriptor important">9</span>></span> pexpireat key4 <span class="token number">1573472683000</span>
+<span class="token punctuation">(</span>integer<span class="token punctuation">)</span> <span class="token number">1</span>
+<span class="token number">127.0</span>.0.1:637<span class="token operator"><span class="token file-descriptor important">9</span>></span> pttl key4
+<span class="token punctuation">(</span>integer<span class="token punctuation">)</span> <span class="token number">3522</span><span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>其中 <code>pexpireat key4 1573472683000</code> 表示 key4 在时间戳 1573472683000 后过期（精确到毫秒），使用 ttl 查询可以发现在 3522ms 后 key4 会过期。</p>
 <h3 id="字符串中的过期操作"><a href="#字符串中的过期操作" class="headerlink" title="字符串中的过期操作"></a>字符串中的过期操作</h3><p>字符串中几个直接操作过期时间的方法，如下列表：</p>
@@ -522,16 +544,30 @@
 </ul>
 <p>实现示例如下:</p>
 <p><strong>1. set key value ex seconds</strong></p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1:6379&gt; set k v ex 100</span><br><span class="line">OK</span><br><span class="line">127.0.0.1:6379&gt; ttl k</span><br><span class="line">(integer) 97</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-shell" data-language="shell"><code class="language-shell"><span class="token number">127.0</span>.0.1:637<span class="token operator"><span class="token file-descriptor important">9</span>></span> <span class="token builtin class-name">set</span> k <span class="token function">v</span> ex <span class="token number">100</span>
+OK
+<span class="token number">127.0</span>.0.1:637<span class="token operator"><span class="token file-descriptor important">9</span>></span> ttl k
+<span class="token punctuation">(</span>integer<span class="token punctuation">)</span> <span class="token number">97</span><span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p><strong>2. set key value ex milliseconds</strong></p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1:6379&gt; set k2 v2 px 100000</span><br><span class="line">OK</span><br><span class="line">127.0.0.1:6379&gt; pttl k2</span><br><span class="line">(integer) 92483</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-shell" data-language="shell"><code class="language-shell"><span class="token number">127.0</span>.0.1:637<span class="token operator"><span class="token file-descriptor important">9</span>></span> <span class="token builtin class-name">set</span> k2 v2 px <span class="token number">100000</span>
+OK
+<span class="token number">127.0</span>.0.1:637<span class="token operator"><span class="token file-descriptor important">9</span>></span> pttl k2
+<span class="token punctuation">(</span>integer<span class="token punctuation">)</span> <span class="token number">92483</span><span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p><strong>3. setex key seconds valule</strong></p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1:6379&gt; setex k3 100 v3</span><br><span class="line">OK</span><br><span class="line">127.0.0.1:6379&gt; ttl k3</span><br><span class="line">(integer) 91</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-shell" data-language="shell"><code class="language-shell"><span class="token number">127.0</span>.0.1:637<span class="token operator"><span class="token file-descriptor important">9</span>></span> setex k3 <span class="token number">100</span> v3
+OK
+<span class="token number">127.0</span>.0.1:637<span class="token operator"><span class="token file-descriptor important">9</span>></span> ttl k3
+<span class="token punctuation">(</span>integer<span class="token punctuation">)</span> <span class="token number">91</span><span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span></span></code></pre>
 
 <h2 id="二、移除过期时间"><a href="#二、移除过期时间" class="headerlink" title="二、移除过期时间"></a>二、移除过期时间</h2><p>当我们设置键的过期时间之后，其实我们还可以移除键的过期时间，可以使用命令 <code>persist key</code> 可以移除键值的过期时间，如下代码所示：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1:6379&gt; ttl k3</span><br><span class="line">(integer) 97</span><br><span class="line">127.0.0.1:6379&gt; persist k3</span><br><span class="line">(integer) 1</span><br><span class="line">127.0.0.1:6379&gt; ttl k3</span><br><span class="line">(integer) -1</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-shell" data-language="shell"><code class="language-shell"><span class="token number">127.0</span>.0.1:637<span class="token operator"><span class="token file-descriptor important">9</span>></span> ttl k3
+<span class="token punctuation">(</span>integer<span class="token punctuation">)</span> <span class="token number">97</span>
+<span class="token number">127.0</span>.0.1:637<span class="token operator"><span class="token file-descriptor important">9</span>></span> persist k3
+<span class="token punctuation">(</span>integer<span class="token punctuation">)</span> <span class="token number">1</span>
+<span class="token number">127.0</span>.0.1:637<span class="token operator"><span class="token file-descriptor important">9</span>></span> ttl k3
+<span class="token punctuation">(</span>integer<span class="token punctuation">)</span> -1<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>可以看出第一次使用 ttl 查询 k3 会在 97s 后过期，当使用了 persist 命令之后，在查询 k3 的存活时间发现结果是 -1，它表示 k3 永不过期。</p>
 <p>其他过期操作方法：</p>

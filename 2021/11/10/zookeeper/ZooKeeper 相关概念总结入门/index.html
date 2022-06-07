@@ -539,7 +539,21 @@
 <li><strong>data</strong> ： 节点存放的数据的具体内容</li>
 </ul>
 <p>如下所示，我通过 get 命令来获取 根目录下的 dubbo 节点的内容。（get 命令在下面会介绍到）。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">[zk: 127.0.0.1:2181(CONNECTED) 6] get /dubbo</span><br><span class="line"><span class="meta">#</span><span class="bash"> 该数据节点关联的数据内容为空</span></span><br><span class="line">null</span><br><span class="line"><span class="meta">#</span><span class="bash"> 下面是该数据节点的一些状态信息，其实就是 Stat 对象的格式化输出</span></span><br><span class="line">cZxid = 0x2</span><br><span class="line">ctime = Tue Nov 27 11:05:34 CST 2018</span><br><span class="line">mZxid = 0x2</span><br><span class="line">mtime = Tue Nov 27 11:05:34 CST 2018</span><br><span class="line">pZxid = 0x3</span><br><span class="line">cversion = 1</span><br><span class="line">dataVersion = 0</span><br><span class="line">aclVersion = 0</span><br><span class="line">ephemeralOwner = 0x0</span><br><span class="line">dataLength = 0</span><br><span class="line">numChildren = 1Copy to clipboardErrorCopied</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-shell" data-language="shell"><code class="language-shell"><span class="token punctuation">[</span>zk: <span class="token number">127.0</span>.0.1:2181<span class="token punctuation">(</span>CONNECTED<span class="token punctuation">)</span> <span class="token number">6</span><span class="token punctuation">]</span> get /dubbo
+<span class="token comment"># 该数据节点关联的数据内容为空</span>
+null
+<span class="token comment"># 下面是该数据节点的一些状态信息，其实就是 Stat 对象的格式化输出</span>
+cZxid <span class="token operator">=</span> 0x2
+ctime <span class="token operator">=</span> Tue Nov <span class="token number">27</span> <span class="token number">11</span>:05:34 CST <span class="token number">2018</span>
+mZxid <span class="token operator">=</span> 0x2
+mtime <span class="token operator">=</span> Tue Nov <span class="token number">27</span> <span class="token number">11</span>:05:34 CST <span class="token number">2018</span>
+pZxid <span class="token operator">=</span> 0x3
+cversion <span class="token operator">=</span> <span class="token number">1</span>
+dataVersion <span class="token operator">=</span> <span class="token number">0</span>
+aclVersion <span class="token operator">=</span> <span class="token number">0</span>
+ephemeralOwner <span class="token operator">=</span> 0x0
+dataLength <span class="token operator">=</span> <span class="token number">0</span>
+numChildren <span class="token operator">=</span> 1Copy to clipboardErrorCopied<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>Stat 类中包含了一个数据节点的所有状态信息的字段，包括事务 ID-cZxid、节点创建时间-ctime 和子节点个数-numChildren 等等。</p>
 <p>下面我们来看一下每个 znode 状态信息究竟代表的是什么吧！（下面的内容来源于《从 Paxos 到 ZooKeeper 分布式一致性原理与实践》，因为 Guide 确实也不是特别清楚，要学会参考资料的嘛！ ） ：</p>

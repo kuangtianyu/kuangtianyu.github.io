@@ -541,11 +541,11 @@
 <p><strong>锁定读的语句：</strong>  </p>
 <p>我们在读取一条记录的时候会加 S锁，其实我们要是在读取的时候不希望别的事务来读写该记录，我们也可以在读取的时候给这条记录加 X 锁，语句格式如下：</p>
 <p>加 S 锁：</p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> ... LOCK <span class="keyword">IN</span> SHARE MODE;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-sql" data-language="sql"><code class="language-sql"><span class="token keyword">SELECT</span> <span class="token punctuation">.</span><span class="token punctuation">.</span><span class="token punctuation">.</span> <span class="token keyword">LOCK</span> <span class="token operator">IN</span> <span class="token keyword">SHARE</span> <span class="token keyword">MODE</span><span class="token punctuation">;</span><span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>如果当前事务用该语句给一条记录加了 S 锁，那么其他事务可以给该记录加 S 锁，但是不能加 X 锁；如果想要获取该记录的 X 锁，必须等待当前事务提交后释放掉 S 锁。</p>
 <p>加 X 锁：</p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> ... <span class="keyword">FOR</span> UPDATE;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-sql" data-language="sql"><code class="language-sql"><span class="token keyword">SELECT</span> <span class="token punctuation">.</span><span class="token punctuation">.</span><span class="token punctuation">.</span> <span class="token keyword">FOR</span> <span class="token keyword">UPDATE</span><span class="token punctuation">;</span><span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>如果当前事务用该语句给一条记录加了 X 锁，那么其他事务既不能给该记录加 X 锁也不能给该记录加 S 锁；如果想要获取该记录的 X 锁或 S 锁，必须等待当前事务提交后释放掉 X 锁。</p>
 <h3 id="2、多粒度锁"><a href="#2、多粒度锁" class="headerlink" title="2、多粒度锁"></a>2、多粒度锁</h3><p>其实我们上面提到的锁都是基于记录来的，就是对一条记录加锁，我们把它叫做行锁，这种锁的粒度比较洗细，作用范围是一行记录。其实呢，一个事务还可以对整个表加锁，我们叫做表锁，它的粒度比较粗，它也分为共享锁（S 锁）和独占锁（X 锁），和行级锁一样，假如：</p>
@@ -618,7 +618,15 @@
 </blockquote>
 <p>行锁，顾名思义就是对数据库中的一条记录加锁，这么说很简单，其实，行锁一点都不简单。行锁呢又分为       Record Lock、Gap Lock 和 Next-Key Lock  。</p>
 <h4 id="Record-Lock"><a href="#Record-Lock" class="headerlink" title="Record Lock"></a>Record Lock</h4><p>为了我们方便讲解，我新建了一个表：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">+--------+---------+---------+</span><br><span class="line">| number | name    | country |</span><br><span class="line">+--------+---------+---------+</span><br><span class="line">|      1 | l刘备   | 蜀      |</span><br><span class="line">|      3 | z诸葛亮 | 蜀      |</span><br><span class="line">|      8 | c曹操   | 魏      |</span><br><span class="line">|     15 | x荀彧   | 魏      |</span><br><span class="line">|     20 | s孙权   | 吴      |</span><br><span class="line">+--------+---------+---------+</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">+--------+---------+---------+
+| number | name    | country |
++--------+---------+---------+
+|      1 | l刘备   | 蜀      |
+|      3 | z诸葛亮 | 蜀      |
+|      8 | c曹操   | 魏      |
+|     15 | x荀彧   | 魏      |
+|     20 | s孙权   | 吴      |
++--------+---------+---------+<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>聚簇索引图如下：</p>
 <img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327110607187.png" alt="image-20220327110607187" style="zoom:80%;" />

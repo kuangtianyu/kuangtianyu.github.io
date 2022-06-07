@@ -506,7 +506,7 @@
 <p>那么，主从库同步是如何完成的呢？主库数据是一次性传给从库，还是分批同步？要是主从库间的网络断连了，数据还能保持一致吗？下面我就带你一探究竟。</p>
 <h2 id="主从库间如何进行第一次同步"><a href="#主从库间如何进行第一次同步" class="headerlink" title="主从库间如何进行第一次同步"></a>主从库间如何进行第一次同步</h2><p>当我们启动多个 Redis 实例的时候，它们相互之间就可以通过 replicaof（Redis 5.0 之前使用 slaveof）命令形成主库和从库的关系，之后会按照三个阶段完成数据的第一次同步。  </p>
 <p>例如，现在有实例 1（ip：172.16.19.3）和实例 2（ip：172.16.19.5），我们在实例 2 上执行以下这个命令后，实例 2 就变成了实例 1 的从库，并从实例 1 上复制数据：  </p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">replicaof 172.16.19.3 6379</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-shell" data-language="shell"><code class="language-shell">replicaof <span class="token number">172.16</span>.19.3 <span class="token number">6379</span><span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>接下来就是主从库同步的三个阶段了，整体步骤如下图：</p>
 <img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327121012099.png" alt="image-20220327121012099" style="zoom:80%;" />
@@ -530,7 +530,7 @@
 <p>如果从库数量很多，而且都要和主库进行全量复制的话，就会导致主库忙于 fork 子进程生成 RDB 文件，进行数据全量同步。fork 这个操作会阻塞主线程处理正常请求，从而导致主库响应应用程序的请求速度变慢。此外，传输 RDB 文件也会占用主库的网络带宽，同样会给主库的资源使用带来压力。那么，有没有好的解决方法可以分担主库压力呢？  </p>
 <p>我们可以使用“主 - 从 - 从”模式 来解决主库压力过大的问题，通过“主 - 从 - 从”模式将主库生成 RDB 和传输 RDB 的压力，以级联的方式分散到从库上。  </p>
 <p>简单来说，我们在部署主从集群的时候，可以手动选择一个从库（比如选择内存资源配置较高的从库），用于级联其他的从库。然后，我们可以再选择一些从库（例如三分之一的从库），在这些从库上执行如下命令，让它们和刚才所选的从库，建立起主从关系。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">replicaof 所选从库的IP 6379</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">replicaof 所选从库的IP 6379<span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>这样一来，这些从库就会知道，在进行同步时，不用再和主库进行交互了，只要和级联的从库进行写操作同步就行了，这就可以减轻主库上的压力，如下图所示：  </p>
 <img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327121020308.png" alt="image-20220327121020308" style="zoom:80%;" />

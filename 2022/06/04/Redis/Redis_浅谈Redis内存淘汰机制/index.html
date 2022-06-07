@@ -495,14 +495,18 @@
 <img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327120741185.png" alt="image-20220327120741185" style="zoom:80%;" />
 
 <h3 id="1、查询最大运行内存"><a href="#1、查询最大运行内存" class="headerlink" title="1、查询最大运行内存"></a>1、查询最大运行内存</h3><p>我们可以使用命令 <code>config get maxmemory</code> 来查看设置的最大运行内存，命令如下：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1:6379&gt; config get maxmemory</span><br><span class="line">1) &quot;maxmemory&quot;</span><br><span class="line">2) &quot;0&quot;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-shell" data-language="shell"><code class="language-shell"><span class="token number">127.0</span>.0.1:637<span class="token operator"><span class="token file-descriptor important">9</span>></span> config get maxmemory
+<span class="token number">1</span><span class="token punctuation">)</span> <span class="token string">"maxmemory"</span>
+<span class="token number">2</span><span class="token punctuation">)</span> <span class="token string">"0"</span><span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span></span></code></pre>
 
 <p>我们发现此值竟然是 0，这是 64 位操作系统默认的值，当 maxmemory 为 0 时，表示没有内存大小限制。</p>
 <blockquote>
 <p>小贴士：32 位操作系统，默认的最大内存值是 3GB。</p>
 </blockquote>
 <h2 id="二、内存淘汰策略"><a href="#二、内存淘汰策略" class="headerlink" title="二、内存淘汰策略"></a>二、内存淘汰策略</h2><p>我们可以使用 <code>config get maxmemory-policy</code> 命令，来查看当前 Redis 的内存淘汰策略，命令如下：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1:6379&gt; config get maxmemory-policy</span><br><span class="line">1) &quot;maxmemory-policy&quot;</span><br><span class="line">2) &quot;noeviction&quot;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-shell" data-language="shell"><code class="language-shell"><span class="token number">127.0</span>.0.1:637<span class="token operator"><span class="token file-descriptor important">9</span>></span> config get maxmemory-policy
+<span class="token number">1</span><span class="token punctuation">)</span> <span class="token string">"maxmemory-policy"</span>
+<span class="token number">2</span><span class="token punctuation">)</span> <span class="token string">"noeviction"</span><span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span></span></code></pre>
 
 <p>可以看出此 Redis 使用的是 noeviction 类型的内存淘汰机制，它表示当运行内存超过最大设置内存时，不淘汰任何数据，但新增操作会报错。</p>
 <h3 id="1、内存淘汰策略分类"><a href="#1、内存淘汰策略分类" class="headerlink" title="1、内存淘汰策略分类"></a>1、内存淘汰策略分类</h3><p>早期版本的 Redis 有以下 6 种淘汰策略：</p>
@@ -535,7 +539,7 @@
 <p><strong>注意</strong>：LRU 算法在实际实现时，需要用链表管理所有的缓存数据，这会带来额外的空间开销。而且，当有数据被访问时，需要在链表上把该数据移动到 MRU 端，如果有大量数据被访问，就会带来很多链表移动操作，会很耗时，进而会降低 Redis 缓存性能，所以 Redis 采用了下面的 近 LRU 算法🤭🤭🤭</p>
 <p><strong>2. 近 LRU 算法</strong></p>
 <p>Redis 使用的是一种近似 LRU 算法，目的是为了更好的节约内存，它的实现方式是给现有的数据结构添加一个额外的字段，用于记录此键值的最后一次访问时间，Redis 内存淘汰时，会使用随机采样的方式来淘汰数据，它是随机取 n 个值（此值可配置），然后使用 LRU 算法淘汰最久没有使用的那个。这个配置参数是 <code>maxmemory-samples</code>  ：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">CONFIG SET maxmemory-samples 100</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-shell" data-language="shell"><code class="language-shell">CONFIG SET maxmemory-samples <span class="token number">100</span><span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>这样一来，Redis 缓存不用为所有的数据维护一个大链表，也不用在每次数据访问时都移动链表项，提升了缓存的性能  </p>
 <p><strong>3. LRU 算法缺点</strong></p>
@@ -549,7 +553,15 @@
 <h3 id="LFU-算法"><a href="#LFU-算法" class="headerlink" title="LFU 算法"></a>LFU 算法</h3><p>LFU 全称是 Least Frequently Used 翻译为最不常用的，最不常用的算法是根据总访问次数来淘汰数据的，它的核心思想是“如果数据过去被访问多次，那么将来被访问的频率也更高”。</p>
 <p>LFU 解决了偶尔被访问一次之后，数据就不会被淘汰的问题，相比于 LRU 算法也更合理一些。</p>
 <p>在 Redis 中每个对象头中记录着 LFU 的信息，源码如下：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">redisObject</span> &#123;</span></span><br><span class="line">    <span class="keyword">unsigned</span> type:<span class="number">4</span>;</span><br><span class="line">    <span class="keyword">unsigned</span> encoding:<span class="number">4</span>;</span><br><span class="line">    <span class="keyword">unsigned</span> lru:LRU_BITS; <span class="comment">/* LRU time (relative to global lru_clock) or</span></span><br><span class="line"><span class="comment">                            * LFU data (least significant 8 bits frequency</span></span><br><span class="line"><span class="comment">                            * and most significant 16 bits access time). */</span></span><br><span class="line">    <span class="keyword">int</span> refcount;</span><br><span class="line">    <span class="keyword">void</span> *ptr;</span><br><span class="line">&#125; robj;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-c" data-language="c"><code class="language-c"><span class="token keyword">typedef</span> <span class="token keyword">struct</span> <span class="token class-name">redisObject</span> <span class="token punctuation">&#123;</span>
+    <span class="token keyword">unsigned</span> type<span class="token operator">:</span><span class="token number">4</span><span class="token punctuation">;</span>
+    <span class="token keyword">unsigned</span> encoding<span class="token operator">:</span><span class="token number">4</span><span class="token punctuation">;</span>
+    <span class="token keyword">unsigned</span> lru<span class="token operator">:</span>LRU_BITS<span class="token punctuation">;</span> <span class="token comment">/* LRU time (relative to global lru_clock) or
+                            * LFU data (least significant 8 bits frequency
+                            * and most significant 16 bits access time). */</span>
+    <span class="token keyword">int</span> refcount<span class="token punctuation">;</span>
+    <span class="token keyword">void</span> <span class="token operator">*</span>ptr<span class="token punctuation">;</span>
+<span class="token punctuation">&#125;</span> robj<span class="token punctuation">;</span><span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 
 <p>在 Redis 中 LFU 存储分为两部分，16 bit 的 ldt（last decrement time）和 8 bit 的 logc（logistic counter）。</p>

@@ -544,7 +544,11 @@
 </ul>
 <p>也就是说，<strong>线程 A 在向线程 B 的通信过程必须要经过主内存</strong>。</p>
 <p>那么就会出现一个问题，我们以下面这个例子看看：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">// 线程 1 执行的代码</span><br><span class="line">int i = 0;</span><br><span class="line">i = 1;</span><br><span class="line">// 线程 2 执行的代码</span><br><span class="line">j = i;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">&#x2F;&#x2F; 线程 1 执行的代码
+int i &#x3D; 0;
+i &#x3D; 1;
+&#x2F;&#x2F; 线程 2 执行的代码
+j &#x3D; i;<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>当线程 1  执行 i = 1 这句时，会先去主内存中读取 i 的初始值，然后加载到线程 1 的的工作内存中，再赋值为1，至此，线程 1 的工作内存当中 i 的值变为 1 了，不过还没有写入到主内存当中。</p>
 <p>如果在线程 1 准备把新的 i 值写回主内存的时候，线程 2 执行了 j = i 这条语句，它会去主存读取 i 的值并加载到线程 2 的工作内存当中，而此时主内存当中 i 的值还是 0，那么就会使得 j 的值为 0，而不是 1。</p>

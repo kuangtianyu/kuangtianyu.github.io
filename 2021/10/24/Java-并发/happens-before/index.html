@@ -503,14 +503,23 @@
 <p>2）两个操作之间存在 happens-before 关系，并不意味着 Java 平台的具体实现必须要按照 happens-before 关系指定的顺序来执行。如果重排序之后的执行结果，与按 happens-before 关系来执行的结果一致，那么这种重排序并不非法（也就是说，JMM 允许这种重排序）。</p>
 <p>上面的1）JMM 对程序员强内存模型的承诺。从程序员的角度来说，可以这样理解 Happens-before 关系：如果 A Happens-before B，那么 JMM 将向程序员保证 — A 操作的结果将对 B 可见，且 A 的执行顺序排在 B 之前。注意，这只是 Java内存模型向程序员做出的保证！</p>
 <p>我们举个例子：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">// 以下操作在线程 A 中执行</span><br><span class="line">i = 1; // a</span><br><span class="line"></span><br><span class="line">// 以下操作在线程 B 中执行</span><br><span class="line">j = i; // b</span><br><span class="line"></span><br><span class="line">// 以下操作在线程 C 中执行</span><br><span class="line">i = 2; // c</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">&#x2F;&#x2F; 以下操作在线程 A 中执行
+i &#x3D; 1; &#x2F;&#x2F; a
+
+&#x2F;&#x2F; 以下操作在线程 B 中执行
+j &#x3D; i; &#x2F;&#x2F; b
+
+&#x2F;&#x2F; 以下操作在线程 C 中执行
+i &#x3D; 2; &#x2F;&#x2F; c<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>假设线程 A 中的操作 a Happens-before 线程 B 的操作 b，那我们就可以确定操作 b 执行后，变量 j 的值一定是等于 1。得出这个结论的依据有两个：一是根据 Happens-before 原则，a 操作的结果对 b 可见，即 “i=1” 的结果可以被观察到；二是线程 C 还没运行，线程 A 操作结束之后没有其他线程会修改变量 i 的值。</p>
 <p>现在再来考虑线程 C，我们依然保持 a Happens-before b ，而 c 出现在 a 和 b 的操作之间，但是 c 与 b 没有 Happens-before 关系，也就是说 b 并不一定能看到 c 的操作结果。那么 b 操作的结果也就是 j 的值就不确定了，可能是 1 也可能是 2，那这段代码就是线程不安全的。</p>
 <p>上面的2）是 JMM 对编译器和处理器重排序的约束原则。就像上面说的，JMM 其实是在遵循一个基本原则：只要不改变程序的执行结果（指的是单线程和正确同步的多线程程序），编译器和处理器怎么优化都行。</p>
 <p>JMM 这么做的原因是：程序员对于这两个操作是否真的被重排序并不关心，程序员关心的是执行结果不能被改变。</p>
 <p>我们举个例子：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">int a = 1;   // A</span><br><span class="line">int b = 2;  // B</span><br><span class="line">int c = a + b; // C</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">int a &#x3D; 1;   &#x2F;&#x2F; A
+int b &#x3D; 2;  &#x2F;&#x2F; B
+int c &#x3D; a + b; &#x2F;&#x2F; C<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span></span></code></pre>
 
 <p>根据 Happens-before 规则（下文会讲），上述代码存在 3 个 Happens-before 关系：</p>
 <p>1）A happens-before B</p>

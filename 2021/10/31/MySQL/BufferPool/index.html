@@ -568,7 +568,7 @@
 <p>LRU 链表 分为 young 和 old 两个区域，可以通过 <code>innodb_old_blocks_pct</code> 来调节 old 区域所占的比例。首次从磁盘上加载到 Buffer Pool 的页会被放到 old 区域的头部，在 <code>innodb_old_blocks_time</code> 间隔时间内访问该页不会把它移动到 young 区域头部。在 Buffer Pool 没有可用的空闲缓存页时，会首先淘汰掉 old 区域的一些页。</p>
 <p>我们可以通过指定 <code>innodb_buffer_pool_instances</code> 来控制 Buffer Pool 实例的个数，每个 Buffer Pool 实例中都有各自独立的链表，互不干扰。</p>
 <p>自 MySQL 5.7.5 版本之后，可以在服务器运行过程中调整 Buffer Pool 大小。每个 Buffer Pool 实例由若干个 chunk 组成，每个 chunk 的大小可以在服务器启动时通过启动参数调整可以用下边的命令查看 Buffer Pool 的状态信息：</p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SHOW</span> ENGINE INNODB STATUS\G </span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-sql" data-language="sql"><code class="language-sql"><span class="token keyword">SHOW</span> <span class="token keyword">ENGINE</span> <span class="token keyword">INNODB</span> <span class="token keyword">STATUS</span>\G <span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>好了，到这里我们的 Buffer Pool 就讲的差不多了，我们下次见 🤣🤣🤣。</p>
 <blockquote>

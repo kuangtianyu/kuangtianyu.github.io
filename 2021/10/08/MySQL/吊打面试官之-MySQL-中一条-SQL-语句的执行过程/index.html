@@ -490,7 +490,7 @@
             <div id="articleContent">
                 <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>在平常的开发中，可能很多人都是 CRUD，对 SQL 语句的语法很熟练，但是说起一条 SQL 语句在 MySQL 中是怎么执行的却浑然不知，今天我就由浅入深，带大家一点点剖析一条 SQL 语句在 MySQL 中是怎么执行的，吊打面试官。本文主要从两个方面，查询语句和更新语句来解析。</p>
 <h2 id="一条-SQL-查询语句如何执行的"><a href="#一条-SQL-查询语句如何执行的" class="headerlink" title="一条 SQL 查询语句如何执行的"></a>一条 SQL 查询语句如何执行的</h2><p>比如你执行下面这个 SQL 语句时，我们看到的只是输入一条语句，返回一个结果，却不知道 MySQL 内部的执行过程：</p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">select</span> <span class="operator">*</span> <span class="keyword">from</span> T <span class="keyword">where</span> ID<span class="operator">=</span><span class="number">10</span>；</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-sql" data-language="sql"><code class="language-sql">mysql<span class="token operator">></span> <span class="token keyword">select</span> <span class="token operator">*</span> <span class="token keyword">from</span> T <span class="token keyword">where</span> ID<span class="token operator">=</span><span class="token number">10</span>；<span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>在剖析这个语句怎么执行之前，我们先看一下 MySQL 的基本架构示意图，能更清楚的看到 SQL 语句在 MySQL 的各个功能模块中的执行过程。</p>
 <img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327103528948.png" alt="image-20220327103528948" style="zoom:80%;" />
@@ -500,7 +500,7 @@
 <p>存储引擎负责数据的存储和提取，其架构模式是插件式的，支持 InnoDB、MyISAM、Memory 等多个存储引擎。MySQL 5.5.5 之后默认是使用 InnoDB，如果不指定就会使用该存存储引擎，也可以在创建表的时候指定存储引擎或修改存储引擎。</p>
 <p>从架构图中可以看出，不同的存储引擎共用一个 Server 层。</p>
 <h3 id="连接器"><a href="#连接器" class="headerlink" title="连接器"></a>连接器</h3><p>如果要操作 MySQL 数据库，我们必须使用 MySQL 客户端来连接 MySQL 服务器，这时候就是服务器中的连接器来负责根客户端建立连接、获取权限、维持和管理连接，一般的命令如下：</p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mysql <span class="operator">-</span>h$ip <span class="operator">-</span>P$port <span class="operator">-</span>u$username <span class="operator">-</span>p[$password] </span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-sql" data-language="sql"><code class="language-sql">mysql <span class="token operator">-</span>h$ip <span class="token operator">-</span>P$port <span class="token operator">-</span>u$username <span class="token operator">-</span>p<span class="token punctuation">[</span>$password<span class="token punctuation">]</span> <span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>在和服务端完成 TCP 连接后，连接器就要认证身份，用到用户名和密码</p>
 <ul>
@@ -526,7 +526,7 @@
 <p><strong>但是大多数情况下我会建议你不要使用查询缓存，为什么呢？因为查询缓存往往弊大于利。</strong></p>
 <p>查询缓存的失效非常频繁，只要有对一个表的更新，这个表上所有的查询缓存都会被清空。因此很可能你费劲地把结果存起来，还没使用呢，就被一个更新全清空了。对于更新压力大的数据库来说，查询缓存的命中率会非常低。除非你的业务就是有一张静态表，很长时间才会更新一次。比如，一个系统配置表，那这张表上的查询才适合使用查询缓存。</p>
 <p>好在 MySQL 也提供了这种“按需使用”的方式。你可以将参数 query_cache_type 设置成 DEMAND，这样对于默认的 SQL 语句都不使用查询缓存。而对于你确定要使用查询缓存的语句，可以用 SQL_CACHE 显式指定，像下面这个语句一样：</p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">select</span> SQL_CACHE <span class="operator">*</span> <span class="keyword">from</span> T <span class="keyword">where</span> ID<span class="operator">=</span><span class="number">10</span>；</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-sql" data-language="sql"><code class="language-sql">mysql<span class="token operator">></span> <span class="token keyword">select</span> SQL_CACHE <span class="token operator">*</span> <span class="token keyword">from</span> T <span class="token keyword">where</span> ID<span class="token operator">=</span><span class="token number">10</span>；<span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <blockquote>
 <p>MySQL 8.0 版本直接将查询缓存的整块功能删掉了，也就是说 8.0 开始彻底没有这个功能了。</p>
@@ -555,7 +555,7 @@
 </blockquote>
 <p>以上就是一个查询语句的执行过程，为啥要将查询语句和更新语句分开呢，因为更新语句会涉及的表的修改，与 MySQL 中的日志有很大关联，我们下面再来说！</p>
 <h2 id="一条-SQL-更新语句是如何执行的"><a href="#一条-SQL-更新语句是如何执行的" class="headerlink" title="一条 SQL 更新语句是如何执行的"></a>一条 SQL 更新语句是如何执行的</h2><p>SQL 的更新语句也会走查询语句的那一套流程。例如下面的这条更新语句：</p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mysql<span class="operator">&gt;</span> update T <span class="keyword">set</span> c<span class="operator">=</span>c<span class="operator">+</span><span class="number">1</span> <span class="keyword">where</span> ID<span class="operator">=</span><span class="number">2</span>;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-sql" data-language="sql"><code class="language-sql">mysql<span class="token operator">></span> <span class="token keyword">update</span> T <span class="token keyword">set</span> c<span class="token operator">=</span>c<span class="token operator">+</span><span class="token number">1</span> <span class="token keyword">where</span> ID<span class="token operator">=</span><span class="token number">2</span><span class="token punctuation">;</span><span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>执行语句前要先连接数据库，这是连接器的工作。</p>
 <p>接下来，分析器会通过词法分析和语法分析知道这是一条更新语句。</p>

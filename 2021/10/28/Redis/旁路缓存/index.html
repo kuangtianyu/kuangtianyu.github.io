@@ -509,7 +509,15 @@
 <li>当缓存中的数据需要更新时，我们也需要在应用程序中显式地调用 SET 操作接口，把更新的数据写入缓存。</li>
 </ol>
 <p>那么，代码应该怎么加呢？我给你展示一段 Web 应用中使用 Redis 缓存的伪代码示例。</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">String cacheKey = “productid_11010003”;</span><br><span class="line">String cacheValue = redisCache.get(cacheKey)；</span><br><span class="line"><span class="comment">//缓存命中</span></span><br><span class="line"><span class="keyword">if</span> ( cacheValue != NULL)</span><br><span class="line">	<span class="keyword">return</span> cacheValue;</span><br><span class="line"><span class="comment">//缓存缺失</span></span><br><span class="line"><span class="keyword">else</span></span><br><span class="line">	cacheValue = getProductFromDB();</span><br><span class="line">	redisCache.put(cacheValue) <span class="comment">//缓存更新</span></span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-java" data-language="java"><code class="language-java"><span class="token class-name">String</span> cacheKey <span class="token operator">=</span> “productid_11010003”<span class="token punctuation">;</span>
+<span class="token class-name">String</span> cacheValue <span class="token operator">=</span> redisCache<span class="token punctuation">.</span><span class="token function">get</span><span class="token punctuation">(</span>cacheKey<span class="token punctuation">)</span>；
+<span class="token comment">//缓存命中</span>
+<span class="token keyword">if</span> <span class="token punctuation">(</span> cacheValue <span class="token operator">!=</span> NULL<span class="token punctuation">)</span>
+	<span class="token keyword">return</span> cacheValue<span class="token punctuation">;</span>
+<span class="token comment">//缓存缺失</span>
+<span class="token keyword">else</span>
+	cacheValue <span class="token operator">=</span> <span class="token function">getProductFromDB</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+	redisCache<span class="token punctuation">.</span><span class="token function">put</span><span class="token punctuation">(</span>cacheValue<span class="token punctuation">)</span> <span class="token comment">//缓存更新</span><span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>可以看到，为了使用缓存，Web 应用程序需要有一个表示缓存系统的实例对象redisCache，还需要主动调用 Redis 的 GET 接口，并且要处理缓存命中和缓存缺失时的逻辑，例如在缓存缺失时，需要更新缓存。</p>
 <p>了解了这一点，我们在使用 Redis 缓存时，有一个地方就需要注意了：因为需要新增程序代码来使用缓存，所以，Redis 并不适用于那些无法获得源码的应用，例如一些很早之前开发的应用程序，它们的源码已经没有再维护了，或者是第三方供应商开发的应用，没有提供源码，所以，我们就没有办法在这些应用中进行缓存操作。</p>

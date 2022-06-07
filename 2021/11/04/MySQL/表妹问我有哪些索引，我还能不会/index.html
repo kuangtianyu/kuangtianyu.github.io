@@ -497,7 +497,15 @@
 <p>每次对表中的数据进行增、删、改操作时，都需要去修改各个 B+ 树索引。而且我们讲过， B+ 树每层节点都是按照索引列的值从小到大的顺序排序而组成了双向链表。不论是叶子节点中的记录，还是内节点中的记录（也就是不论是用户记录还是目录项记录）都是按照索引列的值从小到大的顺序而形成了一个单向链表。而增、删、改操作可能会对节点和记录的排序造成破坏，所以存储引擎需要额外的时间进行一些记录移位，页面分裂、页面回收啥的操作来维护好节点和记录的排序。如果我们建了许多索引，每个索引对应的 B+ 树都要进行相关的维护操作，这还能不给性能拖后腿么？  </p>
 <p>一个表上索引建的越多，就会占用越多的存储空间，在增删改记录的时候性能就越差  </p>
 <h2 id="二、B-树索引适用的条件"><a href="#二、B-树索引适用的条件" class="headerlink" title="二、B+树索引适用的条件"></a>二、B+树索引适用的条件</h2><p>为了故事的顺利发展，我们需要先创建一个表，这个表是用来存储人的一些基本信息的：  </p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> person_info(</span><br><span class="line">    id <span class="type">INT</span> <span class="keyword">NOT</span> <span class="keyword">NULL</span> auto_increment,</span><br><span class="line">    name <span class="type">VARCHAR</span>(<span class="number">100</span>) <span class="keyword">NOT</span> <span class="keyword">NULL</span>,</span><br><span class="line">    birthday <span class="type">DATE</span> <span class="keyword">NOT</span> <span class="keyword">NULL</span>,</span><br><span class="line">    phone_number <span class="type">CHAR</span>(<span class="number">11</span>) <span class="keyword">NOT</span> <span class="keyword">NULL</span>,</span><br><span class="line">    country <span class="type">varchar</span>(<span class="number">100</span>) <span class="keyword">NOT</span> <span class="keyword">NULL</span>,</span><br><span class="line">    <span class="keyword">PRIMARY</span> KEY (id),</span><br><span class="line">    KEY idx_name_birthday_phone_number (name, birthday, phone_number)</span><br><span class="line">);</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-sql" data-language="sql"><code class="language-sql"><span class="token keyword">CREATE</span> <span class="token keyword">TABLE</span> person_info<span class="token punctuation">(</span>
+    id <span class="token keyword">INT</span> <span class="token operator">NOT</span> <span class="token boolean">NULL</span> <span class="token keyword">auto_increment</span><span class="token punctuation">,</span>
+    name <span class="token keyword">VARCHAR</span><span class="token punctuation">(</span><span class="token number">100</span><span class="token punctuation">)</span> <span class="token operator">NOT</span> <span class="token boolean">NULL</span><span class="token punctuation">,</span>
+    birthday <span class="token keyword">DATE</span> <span class="token operator">NOT</span> <span class="token boolean">NULL</span><span class="token punctuation">,</span>
+    phone_number <span class="token keyword">CHAR</span><span class="token punctuation">(</span><span class="token number">11</span><span class="token punctuation">)</span> <span class="token operator">NOT</span> <span class="token boolean">NULL</span><span class="token punctuation">,</span>
+    country <span class="token keyword">varchar</span><span class="token punctuation">(</span><span class="token number">100</span><span class="token punctuation">)</span> <span class="token operator">NOT</span> <span class="token boolean">NULL</span><span class="token punctuation">,</span>
+    <span class="token keyword">PRIMARY</span> <span class="token keyword">KEY</span> <span class="token punctuation">(</span>id<span class="token punctuation">)</span><span class="token punctuation">,</span>
+    <span class="token keyword">KEY</span> idx_name_birthday_phone_number <span class="token punctuation">(</span>name<span class="token punctuation">,</span> birthday<span class="token punctuation">,</span> phone_number<span class="token punctuation">)</span>
+<span class="token punctuation">)</span><span class="token punctuation">;</span><span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <blockquote>
 <p>小贴士：</p>
@@ -515,7 +523,8 @@
 <p>只要页面和记录是排好序的，我们就可以通过二分法来快速定位查找 （二分法我相信大家都学过）</p>
 <h3 id="1、全值匹配"><a href="#1、全值匹配" class="headerlink" title="1、全值匹配"></a>1、全值匹配</h3><p>我们先说啥叫全值匹配呢？</p>
 <p>如果我们的搜索条件中的列和索引列一致的话，这种情况就称为全值匹配，如下面的语句：</p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> person_info <span class="keyword">WHERE</span> name <span class="operator">=</span> <span class="string">&#x27;Ashburn&#x27;</span> <span class="keyword">AND</span> birthday <span class="operator">=</span> <span class="string">&#x27;1990-09-27&#x27;</span> <span class="keyword">AND</span> phone_num</span><br><span class="line">ber <span class="operator">=</span> <span class="string">&#x27;15123983239&#x27;</span>;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-sql" data-language="sql"><code class="language-sql"><span class="token keyword">SELECT</span> <span class="token operator">*</span> <span class="token keyword">FROM</span> person_info <span class="token keyword">WHERE</span> name <span class="token operator">=</span> <span class="token string">'Ashburn'</span> <span class="token operator">AND</span> birthday <span class="token operator">=</span> <span class="token string">'1990-09-27'</span> <span class="token operator">AND</span> phone_num
+ber <span class="token operator">=</span> <span class="token string">'15123983239'</span><span class="token punctuation">;</span><span aria-hidden="true" class="line-numbers-rows"><span></span><span></span></span></code></pre>
 
 <p>查询过程：</p>
 <ul>
@@ -525,10 +534,10 @@
 </ul>
 <p>假如调整 WHERE 子句中的几个搜索条件的顺序对查询结果有啥影响么？其实是没影响的，因为 MySQL 有一个叫查询优化器的东东，会分析这些搜索条件并且按照可以使用的索引中列的顺序来决定先使用哪个搜索条件，后使用哪个搜索条件    </p>
 <h3 id="2、匹配左边的列"><a href="#2、匹配左边的列" class="headerlink" title="2、匹配左边的列"></a>2、匹配左边的列</h3><p>搜索语句中也可以不用包含全部联合索引中的列，只包含左边的就行，比方说下边的查询语句：  </p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> person_info <span class="keyword">WHERE</span> name <span class="operator">=</span> <span class="string">&#x27;Ashburn&#x27;</span>;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-sql" data-language="sql"><code class="language-sql"><span class="token keyword">SELECT</span> <span class="token operator">*</span> <span class="token keyword">FROM</span> person_info <span class="token keyword">WHERE</span> name <span class="token operator">=</span> <span class="token string">'Ashburn'</span><span class="token punctuation">;</span><span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>那各位想想下面的 SQL 语句会走哪些索引呢？还是不走</p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> person_info <span class="keyword">WHERE</span> name <span class="operator">=</span> <span class="string">&#x27;Ashburn&#x27;</span> <span class="keyword">AND</span> phone_number <span class="operator">=</span> <span class="string">&#x27;15123983239&#x27;</span>;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-sql" data-language="sql"><code class="language-sql"><span class="token keyword">SELECT</span> <span class="token operator">*</span> <span class="token keyword">FROM</span> person_info <span class="token keyword">WHERE</span> name <span class="token operator">=</span> <span class="token string">'Ashburn'</span> <span class="token operator">AND</span> phone_number <span class="token operator">=</span> <span class="token string">'15123983239'</span><span class="token punctuation">;</span><span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>这条语句是走 name 列索引的，而不走 phone_number 列索引，因为 B+ 树的数据页和记录先是按照 name 列的值排序的，name 值相同的记录先按照 birthday 的值进行排序， birthday 值相同的记录才按照 phone_number 值进行排序，现在跳过 birthday 去直接找 phone_number 列是用不到索引的，因为 birthday 列的值不同的记录中 phone_number 的值可能是无序的  </p>
 <blockquote>
@@ -536,7 +545,7 @@
 </blockquote>
 <h3 id="3、匹配列前缀"><a href="#3、匹配列前缀" class="headerlink" title="3、匹配列前缀"></a>3、匹配列前缀</h3><p>对于字符串类型的索引列来说，我们只匹配它的前缀也是可以快速定位记录的  </p>
 <p>举个栗子：查询名字以 ‘As’ 开头的记录，SQL 语句为：  </p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> person_info <span class="keyword">WHERE</span> name <span class="keyword">LIKE</span> <span class="string">&#x27;As%&#x27;</span>;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-sql" data-language="sql"><code class="language-sql"><span class="token keyword">SELECT</span> <span class="token operator">*</span> <span class="token keyword">FROM</span> person_info <span class="token keyword">WHERE</span> name <span class="token operator">LIKE</span> <span class="token string">'As%'</span><span class="token punctuation">;</span><span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>这样是可以走索引的，因为一个排序好的字符串有如下特点：</p>
 <ul>
@@ -545,7 +554,7 @@
 <li>如果第二个字符相同再按照第三个字符进行排序，依此类推  </li>
 </ul>
 <p>那下面这这条 SQL 语句可不可以呢？</p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> person_info <span class="keyword">WHERE</span> name <span class="keyword">LIKE</span> <span class="string">&#x27;%As%&#x27;</span>;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-sql" data-language="sql"><code class="language-sql"><span class="token keyword">SELECT</span> <span class="token operator">*</span> <span class="token keyword">FROM</span> person_info <span class="token keyword">WHERE</span> name <span class="token operator">LIKE</span> <span class="token string">'%As%'</span><span class="token punctuation">;</span><span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>答案是否定的，因为字符串中间有 ‘As’ 的字符串并没有排好序，所以只能全表扫描了  </p>
 <blockquote>
@@ -553,14 +562,14 @@
 </blockquote>
 <h3 id="4、索引下推"><a href="#4、索引下推" class="headerlink" title="4、索引下推"></a>4、索引下推</h3><p>可以在索引遍历过程中，对索引中包含的字段先做判断，直接过滤掉不满足条件的记录，减少回表次数  </p>
 <p>还是举一个栗子吧：</p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">from</span> person_info <span class="keyword">where</span>  name <span class="keyword">like</span> <span class="string">&#x27;陈%&#x27;</span> <span class="keyword">and</span> country <span class="operator">=</span> <span class="string">&#x27;吴国&#x27;</span></span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-sql" data-language="sql"><code class="language-sql"><span class="token keyword">SELECT</span> <span class="token operator">*</span> <span class="token keyword">from</span> person_info <span class="token keyword">where</span>  name <span class="token operator">like</span> <span class="token string">'陈%'</span> <span class="token operator">and</span> country <span class="token operator">=</span> <span class="token string">'吴国'</span><span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>假如有 name_country 联合索引，在没有使用索引下推之前：</p>
 <p>先查询出姓陈的一堆人，然后依次根据每个人回表到聚簇索引查找，找出对应的 country，然后判断是否是 ‘吴国’，这一堆人有几个就回表几次；</p>
 <p>使用索引下推之后：</p>
 <p>在二级索引查找的时候直接判断 country 是否是’吴国’，把不是’吴国’的直接排除，减少回表的次数</p>
 <h3 id="5、匹配范围值"><a href="#5、匹配范围值" class="headerlink" title="5、匹配范围值"></a>5、匹配范围值</h3><p>如下的范围查询：</p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> person_info <span class="keyword">WHERE</span> name <span class="operator">&gt;</span> <span class="string">&#x27;Asa&#x27;</span> <span class="keyword">AND</span> name <span class="operator">&lt;</span> <span class="string">&#x27;Barlow&#x27;</span>;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-sql" data-language="sql"><code class="language-sql"><span class="token keyword">SELECT</span> <span class="token operator">*</span> <span class="token keyword">FROM</span> person_info <span class="token keyword">WHERE</span> name <span class="token operator">></span> <span class="token string">'Asa'</span> <span class="token operator">AND</span> name <span class="token operator">&lt;</span> <span class="token string">'Barlow'</span><span class="token punctuation">;</span><span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>这是可以走索引的，查询过程如下：</p>
 <ul>
@@ -570,11 +579,11 @@
 <li>找到这些记录的主键值，再到聚簇索引中回表查找完整的记录。  </li>
 </ul>
 <p>注意：如果对多个列同时进行范围查找的话，只有对索引最左边的那个列进行范围查找的时候才能用到 B+ 树索引，如下语句：</p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> person_info <span class="keyword">WHERE</span> name <span class="operator">&gt;</span> <span class="string">&#x27;Asa&#x27;</span> <span class="keyword">AND</span> name <span class="operator">&lt;</span> <span class="string">&#x27;Barlow&#x27;</span> <span class="keyword">AND</span> birthday <span class="operator">&gt;</span> <span class="string">&#x27;1980-01-01&#x27;</span>;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-sql" data-language="sql"><code class="language-sql"><span class="token keyword">SELECT</span> <span class="token operator">*</span> <span class="token keyword">FROM</span> person_info <span class="token keyword">WHERE</span> name <span class="token operator">></span> <span class="token string">'Asa'</span> <span class="token operator">AND</span> name <span class="token operator">&lt;</span> <span class="token string">'Barlow'</span> <span class="token operator">AND</span> birthday <span class="token operator">></span> <span class="token string">'1980-01-01'</span><span class="token punctuation">;</span><span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>birthday 是用不到索引的，因为只有 name 值相同的情况下才能用 birthday 列的值进行排序，而这个查询中通过 name 进行范围查找的记录中可能并不是按照 birthday 列进行排序的，所以在搜索条件中继续以 birthday 列进行查找时是用不到这个 B+ 树索引的。  </p>
 <h3 id="6、精确匹配某一列并范围匹配另外一列"><a href="#6、精确匹配某一列并范围匹配另外一列" class="headerlink" title="6、精确匹配某一列并范围匹配另外一列"></a>6、精确匹配某一列并范围匹配另外一列</h3><p>对于同一个联合索引来说，虽然对多个列都进行范围查找时只能用到最左边那个索引列，但是如果左边的列是精确查找，则右边的列可以进行范围查找，比方说这样：  </p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> person_info <span class="keyword">WHERE</span> name <span class="operator">=</span> <span class="string">&#x27;Ashburn&#x27;</span> <span class="keyword">AND</span> birthday <span class="operator">&gt;</span> <span class="string">&#x27;1980-01-01&#x27;</span> <span class="keyword">AND</span> birthday<span class="operator">&lt;</span> <span class="string">&#x27;2000-12-31&#x27;</span> <span class="keyword">AND</span> phone_number <span class="operator">&gt;</span> <span class="string">&#x27;15100000000&#x27;</span>;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-sql" data-language="sql"><code class="language-sql"><span class="token keyword">SELECT</span> <span class="token operator">*</span> <span class="token keyword">FROM</span> person_info <span class="token keyword">WHERE</span> name <span class="token operator">=</span> <span class="token string">'Ashburn'</span> <span class="token operator">AND</span> birthday <span class="token operator">></span> <span class="token string">'1980-01-01'</span> <span class="token operator">AND</span> birthday<span class="token operator">&lt;</span> <span class="token string">'2000-12-31'</span> <span class="token operator">AND</span> phone_number <span class="token operator">></span> <span class="token string">'15100000000'</span><span class="token punctuation">;</span><span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>这个查询的条件可以分为3个部分：  </p>
 <ul>
@@ -584,11 +593,11 @@
 </ul>
 <h3 id="7、用于排序"><a href="#7、用于排序" class="headerlink" title="7、用于排序"></a>7、用于排序</h3><p>我们在写查询语句的时候经常需要对查询出来的记录通过 ORDER BY 子句按照某种规则进行排序。一般情况下，我们只能把记录都加载到内存中，再用一些排序算法。在 MySQL 中，把这种在内存中或者磁盘上进行排序的方式统称为文件排序（filesort ）这是非常慢的。但是如果排的序和索引中的列顺序是一样的呢</p>
 <p>如下 SQL 语句：</p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> person_info <span class="keyword">ORDER</span> <span class="keyword">BY</span> name, birthday, phone_number LIMIT <span class="number">10</span>;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-sql" data-language="sql"><code class="language-sql"><span class="token keyword">SELECT</span> <span class="token operator">*</span> <span class="token keyword">FROM</span> person_info <span class="token keyword">ORDER</span> <span class="token keyword">BY</span> name<span class="token punctuation">,</span> birthday<span class="token punctuation">,</span> phone_number <span class="token keyword">LIMIT</span> <span class="token number">10</span><span class="token punctuation">;</span><span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>  这个查询的结果集需要先按照 name 值排序，如果记录的 name 值相同，则需要按照 birthday 来排序，如果 birthday 的值相同，则需要按照 phone_number 排序 ，这不就是和我们建索引牌的序一样的吗，所以直接从索引取出结果就好了</p>
 <h3 id="8、用于分组"><a href="#8、用于分组" class="headerlink" title="8、用于分组"></a>8、用于分组</h3><p>有如下分组查询语句：</p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> name, birthday, phone_number, <span class="built_in">COUNT</span>(<span class="operator">*</span>) <span class="keyword">FROM</span> person_info <span class="keyword">GROUP</span> <span class="keyword">BY</span> name, birthday, phone_number</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-sql" data-language="sql"><code class="language-sql"><span class="token keyword">SELECT</span> name<span class="token punctuation">,</span> birthday<span class="token punctuation">,</span> phone_number<span class="token punctuation">,</span> <span class="token function">COUNT</span><span class="token punctuation">(</span><span class="token operator">*</span><span class="token punctuation">)</span> <span class="token keyword">FROM</span> person_info <span class="token keyword">GROUP</span> <span class="token keyword">BY</span> name<span class="token punctuation">,</span> birthday<span class="token punctuation">,</span> phone_number<span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>这个查询语句相当于做了3次分组操作：</p>
 <ul>
@@ -598,14 +607,14 @@
 </ul>
 <p>如果有了索引的话，恰巧这个分组顺序又和我们的 B+ 树中的索引列的顺序是一致的，而我们的 B+ 树索引又是按照索引列排好序的，所以可以直接使用B+ 树索引进行分组。    </p>
 <h2 id="三、回表的代价"><a href="#三、回表的代价" class="headerlink" title="三、回表的代价"></a>三、回表的代价</h2><p>我们先讲解啥是回表，回表就是我们从二级索引查询出索引列和 id，然后到聚簇索引里根据 id 查找，还是举一个栗子吧：</p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> person_info <span class="keyword">WHERE</span> name <span class="operator">&gt;</span> <span class="string">&#x27;Asa&#x27;</span> <span class="keyword">AND</span> name <span class="operator">&lt;</span> <span class="string">&#x27;Barlow&#x27;</span>;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-sql" data-language="sql"><code class="language-sql"><span class="token keyword">SELECT</span> <span class="token operator">*</span> <span class="token keyword">FROM</span> person_info <span class="token keyword">WHERE</span> name <span class="token operator">></span> <span class="token string">'Asa'</span> <span class="token operator">AND</span> name <span class="token operator">&lt;</span> <span class="token string">'Barlow'</span><span class="token punctuation">;</span><span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>从索引 idx_name_birthday_phone_number 对应的 B+ 树中取出 name 值在 Asa ～ Barlow 之间的用户记录。</p>
 <p>由于索引 idx_name_birthday_phone_number 对应的 B+ 树用户记录中只包含 name 、 birthday 、<br>phone_number 、 id 这4个字段，而查询列表是 * ，意味着要查询表中所有字段，也就是还要包括 country<br>字段。这时需要把从上一步中获取到的每一条记录的 id 字段都到聚簇索引对应的 B+ 树中找到完整的用户记录，然后把完整的用户记录返回给查询用户，这个到聚簇索引查找就是回表</p>
 <p>访问二级索引使用 顺序I/O ，访问聚簇索引使用 随机I/O，因为二级索引是按照索引列排序的，而根据二级索引查询出来 id 在聚簇索引中不一定是排序的</p>
 <p>需要回表的记录越多，使用二级索引的性能就越低，所以当我们回表的次数很多的时候就可以考虑使用全表扫描了，而不是二级索引 + 回表的方式</p>
 <h3 id="覆盖索引"><a href="#覆盖索引" class="headerlink" title="覆盖索引"></a>覆盖索引</h3><p>覆盖索引是是啥呢？如果查询的字段在二级索引列里了，不需要进行回表操作，这就叫做覆盖索引。如下：</p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> name, birthday, phone_number <span class="keyword">FROM</span> person_info <span class="keyword">WHERE</span> name <span class="operator">&gt;</span> <span class="string">&#x27;Asa&#x27;</span> <span class="keyword">AND</span> name <span class="operator">&lt;</span> <span class="string">&#x27;Barlow</span></span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-sql" data-language="sql"><code class="language-sql"><span class="token keyword">SELECT</span> name<span class="token punctuation">,</span> birthday<span class="token punctuation">,</span> phone_number <span class="token keyword">FROM</span> person_info <span class="token keyword">WHERE</span> name <span class="token operator">></span> <span class="token string">'Asa'</span> <span class="token operator">AND</span> name <span class="token operator">&lt;</span> 'Barlow<span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>因为我们只查询 name , birthday , phone_number 这三个索引列的值，所以在通过idx_name_birthday_phone_number 索引得到结果后就不必到 聚簇索引 中再查找记录的剩余列，也就是country 列的值了，这样就省去了 回表 操作带来的性能损耗  </p>
 <h2 id="四、如何挑选索引"><a href="#四、如何挑选索引" class="headerlink" title="四、如何挑选索引"></a>四、如何挑选索引</h2><h3 id="1、只为用于搜索、排序或分组的列创建索引"><a href="#1、只为用于搜索、排序或分组的列创建索引" class="headerlink" title="1、只为用于搜索、排序或分组的列创建索引"></a>1、只为用于搜索、排序或分组的列创建索引</h3><p>就是只为出现在 WHERE 子句中的列、连接子句中的连接列，或者出现在 ORDER BY 或 GROUP BY 子句中的列创建索引，而出现在查询列表中的列就没必要建立索引了</p>
@@ -621,7 +630,8 @@
 <li>数据类型越小，索引占用的存储空间就越少，在一个数据页内就可以放下更多的记录，从而减少磁盘 I/O 带来的性能损耗，也就意味着可以把更多的数据页缓存在内存中，从而加快读写效率  </li>
 </ul>
 <h3 id="4、让索引列在比较表达式中单独出现"><a href="#4、让索引列在比较表达式中单独出现" class="headerlink" title="4、让索引列在比较表达式中单独出现"></a>4、让索引列在比较表达式中单独出现</h3><p>假设表中有一个整数列 my_col ，我们为这个列建立了索引。下边的两个 WHERE 子句虽然语义是一致的，但是在效率上却有差别：</p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">WHERE</span> my_col <span class="operator">*</span> <span class="number">2</span> <span class="operator">&lt;</span> <span class="number">4</span> </span><br><span class="line"><span class="keyword">WHERE</span> my_col <span class="operator">&lt;</span> <span class="number">4</span><span class="operator">/</span><span class="number">2</span></span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-sql" data-language="sql"><code class="language-sql"><span class="token keyword">WHERE</span> my_col <span class="token operator">*</span> <span class="token number">2</span> <span class="token operator">&lt;</span> <span class="token number">4</span> 
+<span class="token keyword">WHERE</span> my_col <span class="token operator">&lt;</span> <span class="token number">4</span><span class="token operator">/</span><span class="token number">2</span><span aria-hidden="true" class="line-numbers-rows"><span></span><span></span></span></code></pre>
 
 <p>第1个 WHERE 子句中 my_col 列并<strong>不是</strong>以单独列的形式出现的，而是以 my_col * 2 这样的表达式的形式出现的，存储引擎会依次遍历所有的记录，计算这个表达式的值是不是小于 4 ，所以这种情况下是使用不到为 my_col 列建立的 B+ 树索引的。而第2个 WHERE 子句中 my_col 列并是以<strong>单独</strong>列的形式出现的，这样的情况可以直接使用B+ 树索引。<br>结论：如果索引列在比较表达式中不是以单独列的形式出现，而是以某个表达式，或者函数调用形式出现的话，是用不到索引的  </p>
 <h3 id="5、主键插入顺序"><a href="#5、主键插入顺序" class="headerlink" title="5、主键插入顺序"></a>5、主键插入顺序</h3><p>在我们没有显式的创建索引时，表中的数据实际上都是存储在 聚簇索引 的叶子节点的。而记录又是存储在数据页中的，数据页和记录又是按照记录主键值从小到大的顺序进行排序，所以如果我们插入的记录的主键值是依次增大的话，那我们每插满一个数据页就换到下一个数据页继续插，而如果我们插入的主键值忽大忽小的话，这就比较麻烦了，可能会造成分页和记录移位，这就意味着性能损耗</p>

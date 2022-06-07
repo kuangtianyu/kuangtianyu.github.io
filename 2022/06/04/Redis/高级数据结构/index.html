@@ -499,13 +499,13 @@ BitmapBitmap 翻译过来就是位图，那它有什么作用呢？
 <p>那么该怎么具体使用 Bitmap 进行签到统计呢？</p>
 <p>假设我们要统计 ID 3000 的用户在 2020 年 8 月份的签到情况，就可以按照下面的步骤进行操作。  </p>
 <p>1）执行下面的命令，记录该用户 8 月 3 号已签到。  </p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">SETBIT uid:sign:3000:202008 2 1</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">SETBIT uid:sign:3000:202008 2 1<span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>2）检查该用户 8 月 3 日是否签到。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">GETBIT uid:sign:3000:202008 2</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">GETBIT uid:sign:3000:202008 2<span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>3）统计该用户在 8 月份的签到次数。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">BITCOUNT uid:sign:3000:202008</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">BITCOUNT uid:sign:3000:202008<span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>这样，我们就知道该用户在 8 月份的签到情况了，是不是很简单呢？接下来，你可以再思考一个问题：如果记录了 1 亿个用户 10 天的签到情况，你有办法统计出这 10 天连续签到的用户总数吗？</p>
 <p>在介绍具体的方法之前，我们要先知道，Bitmap 支持用 BITOP 命令对多个 Bitmap 按位做“与”“或”“异或”的操作，操作的结果会保存到一个新的 Bitmap 中。  我们用与运算举个例子：</p>
@@ -519,12 +519,12 @@ BitmapBitmap 翻译过来就是位图，那它有什么作用呢？
 <p>以下面这个场景为例，我们来看看使用基数统计的场景：</p>
 <p>比如统计网页的 UV，网页 UV 的统计有个独特的地方，就是需要去重，一个用户一天内的多次访问只能算作一次。在 Redis 的集合类型中，Set 类型默认支持去重，所以看到有去重需求时，我们可能第一时间就会想到用 Set 类型。  </p>
 <p>我们看看使用 Set 的情况：有一个用户 user1 访问 page1 时，你把这个信息加到 Set 中：  </p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">SADD page1:uv user1</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">SADD page1:uv user1<span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>用户 1 再来访问时，Set 的去重功能就保证了不会重复记录用户 1 的访问次数，这样，用户 1 就算是一个独立访客。当你需要统计 UV 时，可以直接用 SCARD 命令，这个命令会返回一个集合中的元素个数。</p>
 <p>但是这样就没有问题了吗？如果page1 非常火爆，UV 达到了千万，这个时候，一个 Set 就要记录千万个用户ID。对于一个搞大促的电商网站而言，这样的页面可能有成千上万个，如果每个页面都用这样的一个 Set，就会消耗很大的内存空间。  </p>
 <p>当然，也可以使用 Hash 类型记录 UV。例如，你可以把用户 ID 作为 Hash 集合的 key，当用户访问页面时，就用HSET 命令（用于设置 Hash 集合元素的值），对这个用户 ID 记录一个值“1”，表示一个独立访客，用户 1 访问 page1 后，我们就记录为 1 个独立访客，如下所示：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">HSET page1:uv user1 1</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">HSET page1:uv user1 1<span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>即使用户 1 多次访问页面，重复执行这个 HSET 命令，也只会把 user1 的值设置为 1，仍然只记为 1 个独立访客。当要统计 UV 时，我们可以用 HLEN 命令统计 Hash 集合中的所有元素个数。</p>
 <p>但是，和 Set 类型相似，当页面很多时，Hash 类型也会消耗很大的内存空间。那么，有什么办法既能完成统计，还能节省内存吗？</p>
@@ -532,10 +532,10 @@ BitmapBitmap 翻译过来就是位图，那它有什么作用呢？
 <p>HyperLogLog 是一种用于统计基数的数据集合类型，它的最大优势就在于，当集合元素数量非常多时，它计算基数所需的空间总是固定的，而且还很小。  </p>
 <p>在 Redis 中，每个 HyperLogLog 只需要花费 12 KB 内存，就可以计算接近 2^64 个元素的基数。你看，和元素越多就越耗费内存的 Set 和 Hash 类型相比，HyperLogLog 就非常节省空间。  </p>
 <p>在统计 UV 时，你可以用 PFADD 命令（用于向 HyperLogLog 中添加新元素）把访问页面的每个用户都添加到 HyperLogLog 中。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">PFADD page1:uv user1 user2 user3 user4 user5</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">PFADD page1:uv user1 user2 user3 user4 user5<span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>接下来，就可以用 PFCOUNT 命令直接获得 page1 的UV值了，这个命令的作用就是返回 HyperLogLog 的统计结果。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">PFCOUNT page1:uv</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">PFCOUNT page1:uv<span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>但是，HyperLogLog 的统计规则是基于概率完成的，所以它给出的统计结果是有一定误差的，标准误算率是 0.81%。这也就意味着，你使用HyperLogLog 统计的 UV 是 100 万，但实际的 UV 可能是 101 万。虽然误差率不算大，但是，如果你需要精确统计结果的话，最好还是继续用 Set 或 Hash 类型。</p>
 <h2 id="GEO"><a href="#GEO" class="headerlink" title="GEO"></a>GEO</h2><p>我们还是以一个场景为例，来看看 GEO 是个什么东东。</p>
@@ -554,11 +554,11 @@ BitmapBitmap 翻译过来就是位图，那它有什么作用呢？
 </ul>
 <p>我们还是以叫车的例子来看看这两个命令的使用：</p>
 <p>假设车辆 ID 是 33，经纬度位置是（116.034579，39.030452），我们可以用一个 GEO 集合保存所有车辆的经纬度，集合 key 是 cars:locations。执行下面的这个命令，就可以把 ID 号为 33 的车辆的当前经纬度位置存入 GEO 集合中：  </p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">GEOADD cars:locations 116.034579 39.030452 33</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">GEOADD cars:locations 116.034579 39.030452 33<span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>当用户想要寻找自己附近的网约车时，LBS 应用就可以使用 GEORADIUS 命令。</p>
 <p>例如，LBS 应用执行下面的命令时，Redis 会根据输入的用户的经纬度信息（116.054579，39.030452 ），查找以这个经纬度为中心的 5 公里内的车辆信息，并返回给 LBS 应用。当然， 你可以修改“5”这个参数，来返回更大或更小范围内的车辆信息。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">GEORADIUS cars:locations 116.054579 39.030452 5 km ASC COUNT 10</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">GEORADIUS cars:locations 116.054579 39.030452 5 km ASC COUNT 10<span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>另外，我们还可以进一步限定返回的车辆信息。比如，我们可以使用 ASC 选项，让返回的车辆信息按照距离这个中心位置从近到远的方式来排序，以方便选择最近的车辆；还可以使用 COUNT 选项，指定返回的车辆信息的数量。毕竟，5 公里范围内的车辆可能有很多，如果返回全部信息，会占用比较多的数据带宽，这个选项可以帮助控制返回的数据量，节省带宽。  </p>
 <p>可以看到，使用 GEO 数据类型可以非常轻松地操作经纬度这种信息。</p>

@@ -497,11 +497,15 @@
 <p>除了释放没用的对象，垃圾回收也可以清除内存里的记录碎片。碎片整理将占用的堆内存移到堆的一端，一遍 JVM 将整理出的内存分配给新的对象。</p>
 <p>随着应用程序所应付的业务越来越庞大、复杂，用户越来越多，没有 GC 就不能保证应用程序的正常进行。而经常造成 STW（我们下面会讲到😛😛😛） 的 GC 又跟不上实际的需求，所以才会不断地尝试对 GC 进行优化。</p>
 <h2 id="3、早期的垃圾回收"><a href="#3、早期的垃圾回收" class="headerlink" title="3、早期的垃圾回收"></a>3、早期的垃圾回收</h2><p>在早期的 C/C++ 时代，垃圾回收基本上是手工进行的。开发人员可以使用 new 关键字进行内存申请，并使用 delete 关键字进行内存释放。比如以下代码：</p>
-<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">MibRridge *pBridge = <span class="keyword">new</span> <span class="built_in">cmBaseGroupBridge</span>();</span><br><span class="line"><span class="comment">// 如果注册失败，使用Delete释放该对象所占内存区域</span></span><br><span class="line"><span class="keyword">if</span> (pBridge -&gt; <span class="built_in">Register</span>(kDestroy) != NO_ERROR) </span><br><span class="line">    <span class="keyword">delete</span> pBridge;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-c++" data-language="c++"><code class="language-c++">MibRridge *pBridge &#x3D; new cmBaseGroupBridge();
+&#x2F;&#x2F; 如果注册失败，使用Delete释放该对象所占内存区域
+if (pBridge -&gt; Register(kDestroy) !&#x3D; NO_ERROR) 
+    delete pBridge;<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>这种方式可以灵活控制内存释放的时间，但是会给开发人员带来频繁申请和内存释放的管理负担。倘若有一处内存区间由于程序员编码的问题忘记被回收，那么就会产生内存泄露，垃圾对象永远无法被消除，随着系统运行时间的不断增长，垃圾对象所耗内存可能持续上升，直到出现内存溢出并造成应用程序崩溃。</p>
 <p>在有了垃圾回收机制后，上述代码块可能变成这样：</p>
-<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">MibRridge *pBridge = <span class="keyword">new</span> <span class="built_in">cmBaseGroupBridge</span>();</span><br><span class="line">(pBridge -&gt; <span class="built_in">Register</span>(kDestroy);</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-c++" data-language="c++"><code class="language-c++">MibRridge *pBridge &#x3D; new cmBaseGroupBridge();
+(pBridge -&gt; Register(kDestroy);<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span></span></code></pre>
 
 <p>现在，除了 Java 外，C#、Python、Ruby 等语言都使用了自动垃圾回收的思想，也是未来发展趋势。可以说，这种自动化的内存分配和垃圾回收的方式已经成为现代开发语言必备的标准。</p>
 <h2 id="4、Java-垃圾回收机制"><a href="#4、Java-垃圾回收机制" class="headerlink" title="4、Java 垃圾回收机制"></a>4、Java 垃圾回收机制</h2><p>上面讲解了早期的垃圾回收，那么 Java 的垃圾回收机制是啥呢？</p>
@@ -524,7 +528,20 @@
 <li>然而 Syste.gc() 调用附带一个免责声明，无法保证对垃圾收集器的调用。</li>
 <li>JVM 实现这可以通过 System.gc() 调用来决定给 JVM 的 GC 行为。而一般情况下，垃圾回收应该是自动进行的，无需手动触发，否则就太过于麻烦了。在一些特殊情况下，如我们正在编写一个性能基准，我们可以在运行之间调用 System.gc();</li>
 </ul>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">StstemGCTest</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">new</span> SystemGCTest();</span><br><span class="line">        System.gc();    <span class="comment">// 提醒jvm的垃圾回收执行gc，但是不确定是否马上执行gc</span></span><br><span class="line">        <span class="comment">// 与Runtime.getRuntime().gc();  的作用。</span></span><br><span class="line">        System.runRinalization();   <span class="comment">//  强制调用使用引用的对象的finalize（）方法。</span></span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="meta">@Overrider</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">finalize</span><span class="params">()</span> thows Throwable </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>.finalize();</span><br><span class="line">        System.out.println(<span class="string">&quot;SystemGCTest 重写了finalize()&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-java" data-language="java"><code class="language-java"><span class="token keyword">public</span> <span class="token keyword">class</span> <span class="token class-name">StstemGCTest</span> <span class="token punctuation">&#123;</span>
+    <span class="token keyword">public</span> <span class="token keyword">static</span> <span class="token keyword">void</span> <span class="token function">main</span><span class="token punctuation">(</span><span class="token class-name">String</span><span class="token punctuation">[</span><span class="token punctuation">]</span> args<span class="token punctuation">)</span> <span class="token punctuation">&#123;</span>
+        <span class="token keyword">new</span> <span class="token class-name">SystemGCTest</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token class-name">System</span><span class="token punctuation">.</span><span class="token function">gc</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>    <span class="token comment">// 提醒jvm的垃圾回收执行gc，但是不确定是否马上执行gc</span>
+        <span class="token comment">// 与Runtime.getRuntime().gc();  的作用。</span>
+        <span class="token class-name">System</span><span class="token punctuation">.</span><span class="token function">runRinalization</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>   <span class="token comment">//  强制调用使用引用的对象的finalize（）方法。</span>
+    <span class="token punctuation">&#125;</span>
+    
+    <span class="token annotation punctuation">@Overrider</span>
+    <span class="token keyword">protected</span> <span class="token keyword">void</span> <span class="token function">finalize</span><span class="token punctuation">(</span><span class="token punctuation">)</span> thows <span class="token class-name">Throwable</span> <span class="token punctuation">&#123;</span>
+        <span class="token keyword">super</span><span class="token punctuation">.</span><span class="token function">finalize</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token class-name">System</span><span class="token punctuation">.</span>out<span class="token punctuation">.</span><span class="token function">println</span><span class="token punctuation">(</span><span class="token string">"SystemGCTest 重写了finalize()"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">&#125;</span>
+<span class="token punctuation">&#125;</span><span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <h2 id="2、内存溢出与内存泄露"><a href="#2、内存溢出与内存泄露" class="headerlink" title="2、内存溢出与内存泄露"></a>2、内存溢出与内存泄露</h2><h3 id="1、内存溢出（OOM）"><a href="#1、内存溢出（OOM）" class="headerlink" title="1、内存溢出（OOM）"></a>1、内存溢出（OOM）</h3><p>内存溢出相对于内存泄露来说，尽管更容易被理解，但是同样的，内存泄露出也是引发程序崩溃的罪魁祸首之一。</p>
 <p>由于GC一直在发展，所以一般情况下，除非应用程序占用的内存增长速度非常快，造成垃圾回收已经跟不上内存消耗的速度，否则不太容易出现 OOM 的情况。</p>
@@ -629,14 +646,14 @@
 <p>对于一个普通的对象，如果没有其他的引用关系，只要超过了引用的的作用域或者显式地将相应（强）引用赋值为 null，就是可以当做垃圾被收集了，当前具体回收时机还是要看垃圾收集策略</p>
 <p>相对的，软引用、弱引用和虚引用的对象是软可触及、弱可触及和虚可触及的，在一定条件下，都是可以被回收的。所以，强引用是造成Java内存泄露的主要原因之一。</p>
 <p>强引用例子：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">StringBuffer str = <span class="keyword">new</span> StringBuffer(<span class="string">&quot;Hello, 宇哥&quot;</span>);</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-java" data-language="java"><code class="language-java"><span class="token class-name">StringBuffer</span> str <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">StringBuffer</span><span class="token punctuation">(</span><span class="token string">"Hello, 宇哥"</span><span class="token punctuation">)</span><span class="token punctuation">;</span><span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>局部变量 str 指向 StringBuffer 实例所在的堆空间，通过 str 可以操作该实例，那么 str 就是 StringBuffer 实例的强引用。</p>
 <p>对应内存结构：</p>
 <img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327114942409.png" alt="image-20220327114942409" style="zoom:80%;" />
 
 <p>此时，如果再运行一个赋值语句：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">StringBuffer str1 = str;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-java" data-language="java"><code class="language-java"><span class="token class-name">StringBuffer</span> str1 <span class="token operator">=</span> str<span class="token punctuation">;</span><span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>对应的内存结构：</p>
 <img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327114948527.png" alt="image-20220327114948527" style="zoom:80%;" />
@@ -652,14 +669,18 @@
 <p>垃圾回收器在某个时刻决定软件可达的对象的时候，会清理软引用，并可选地把引用存放到一个引用队列（Reference Queue）。</p>
 <p>类似弱引用，只不过Java虚拟机会尽量让软引用的存活时间长一些，迫不得已才清理。</p>
 <p>在 JDK 1.2 版之后提供了 java.lang.ref.SoftReference 类来实现软引用。</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Object obj = <span class="keyword">new</span> Obj();   <span class="comment">//声明强引用</span></span><br><span class="line">SoftReference&lt;Object&gt; sf = <span class="keyword">new</span> SoftReference&lt;Object&gt;(obj);</span><br><span class="line">obj = <span class="keyword">null</span>;   <span class="comment">// 销毁强引用。</span></span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-java" data-language="java"><code class="language-java"><span class="token class-name">Object</span> obj <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">Obj</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>   <span class="token comment">//声明强引用</span>
+<span class="token class-name">SoftReference</span><span class="token generics"><span class="token punctuation">&lt;</span><span class="token class-name">Object</span><span class="token punctuation">></span></span> sf <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">SoftReference</span><span class="token generics"><span class="token punctuation">&lt;</span><span class="token class-name">Object</span><span class="token punctuation">></span></span><span class="token punctuation">(</span>obj<span class="token punctuation">)</span><span class="token punctuation">;</span>
+obj <span class="token operator">=</span> <span class="token keyword">null</span><span class="token punctuation">;</span>   <span class="token comment">// 销毁强引用。</span><span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span></span></code></pre>
 
 <h3 id="3、再谈引用：弱引用"><a href="#3、再谈引用：弱引用" class="headerlink" title="3、再谈引用：弱引用"></a>3、再谈引用：弱引用</h3><p>弱引用也是用来描述那些非必须对象，只被弱引用关联的对象只能生存到下一次垃圾收集发生为止。在系统GC 时，只要发现弱引用，不管系统堆空间使用是否充足，都会回收掉只被弱引用关联的对象。</p>
 <p>但是，由于垃圾回收器的线程通常优先级很低，因此，并不一定能很快地发现持有弱引用的对象。在这种情况下，弱引用可以存在较长的时间。</p>
 <p>弱引用和软引用一样，在构造弱引用时，也可以指定一个引用对象，当弱引用对象被回收时，就会加入指定的引用队列，通过这个对象可以跟踪对象的回收情况。</p>
 <p>软引用、弱引用都非常适合来保存那些可有可无的缓存数据。如果这样做，当系统内存不足时，这些缓存数据会被回收，不会导致内存溢出。而当内存资源充足时，这些缓存数据又可以存在相当长的时间，从而起到加速系统的作用。</p>
 <p>在 JDK 1.2 版之后提供了 java.lang.ref.WeakReference 类来实现弱引用。</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Object obj = <span class="keyword">new</span> Object();   <span class="comment">// 声明强引用</span></span><br><span class="line">WeakReference&lt;Object&gt; wr = <span class="keyword">new</span> WeakReference&lt;Object&gt;(obj);</span><br><span class="line">obj = <span class="keyword">null</span>;  <span class="comment">// 销毁强引用</span></span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-java" data-language="java"><code class="language-java"><span class="token class-name">Object</span> obj <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">Object</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>   <span class="token comment">// 声明强引用</span>
+<span class="token class-name">WeakReference</span><span class="token generics"><span class="token punctuation">&lt;</span><span class="token class-name">Object</span><span class="token punctuation">></span></span> wr <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">WeakReference</span><span class="token generics"><span class="token punctuation">&lt;</span><span class="token class-name">Object</span><span class="token punctuation">></span></span><span class="token punctuation">(</span>obj<span class="token punctuation">)</span><span class="token punctuation">;</span>
+obj <span class="token operator">=</span> <span class="token keyword">null</span><span class="token punctuation">;</span>  <span class="token comment">// 销毁强引用</span><span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span></span></code></pre>
 
 <p>弱引用对象与软引用对象的最大不同就在于，当 GC 在进行回收时，需要通过算法检查是否回收软引用，而对于弱引用对象，GC 总是进行回收。弱引用对象更容易、更快被 GC 回收。</p>
 <h3 id="4、再谈引用：虚引用"><a href="#4、再谈引用：虚引用" class="headerlink" title="4、再谈引用：虚引用"></a>4、再谈引用：虚引用</h3><p>也称为“幽灵引用”或者“幻影引用”，是所有引用类型中最弱的一个。</p>
@@ -669,7 +690,9 @@
 <p>虚引用必须和引用队列一起使用。虚引用在创建时必须提供一个引用队列作为参数。当垃圾回收器准备回收一个对象时，如果发现它还有虚引用，就会在回收对象后，将这个虚引用加入引用队列，以通知应用程序对象的回收情况。</p>
 <p>由于虚引用可以跟踪对象的回收时间，因此，也可以将一些资源释放操作放置在虚引用中执行和记录。</p>
 <p>在 JDK1.2 版之后提供了 PhantomReference 类来实现虚引用。</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Object obj = <span class="keyword">new</span> Object();</span><br><span class="line">ReferenceQueue pgantomQUeue = <span class="keyword">new</span> ReferenceQueue();</span><br><span class="line">PhantomReference&lt;Object&gt; pf = <span class="keyword">new</span> PhantomReference&lt;Object&gt;(obj, phantomQueue);</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-java" data-language="java"><code class="language-java"><span class="token class-name">Object</span> obj <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">Object</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token class-name">ReferenceQueue</span> pgantomQUeue <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">ReferenceQueue</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token class-name">PhantomReference</span><span class="token generics"><span class="token punctuation">&lt;</span><span class="token class-name">Object</span><span class="token punctuation">></span></span> pf <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">PhantomReference</span><span class="token generics"><span class="token punctuation">&lt;</span><span class="token class-name">Object</span><span class="token punctuation">></span></span><span class="token punctuation">(</span>obj<span class="token punctuation">,</span> phantomQueue<span class="token punctuation">)</span><span class="token punctuation">;</span><span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span></span></code></pre>
 
 <h3 id="5、再谈引用：终结器引用"><a href="#5、再谈引用：终结器引用" class="headerlink" title="5、再谈引用：终结器引用"></a>5、再谈引用：终结器引用</h3><p>它用以实现对象的 finalize() 方法，也可以称为终结器引用。</p>
 <p>无需手动编码，其内部配合引用队列使用。</p>

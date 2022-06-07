@@ -5,9 +5,9 @@
 <head>
     <meta charset="utf-8">
     <meta name="keywords" content="把Redis当作队列来用，真的合适吗？, Sky">
-    <meta name="description" content="经常听到很多人讨论，关于「把 Redis 当作队列来用是否合适」的问题。
+    <meta name="description" content="经常听到很多人讨论，关于「把 Redis 当作队列来用是否合适」的问题。  
 有些人表示赞成，他们认为 Redis 很轻量，用作队列很方便。也些人则反对，认为 Redis 会「丢」数据，最好还是用「专业」的队列中间件更稳妥。
-究竟哪种方案更好呢">
+究竟哪种方案更">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="renderer" content="webkit|ie-stand|ie-comp">
@@ -490,30 +490,50 @@
 
         <div class="card-content article-card-content">
             <div id="articleContent">
-                <p>经常听到很多人讨论，关于「把 Redis 当作队列来用是否合适」的问题。</p>
+                <p>经常听到很多人讨论，关于「把 Redis 当作队列来用是否合适」的问题。  </p>
 <p>有些人表示赞成，他们认为 Redis 很轻量，用作队列很方便。也些人则反对，认为 Redis 会「丢」数据，最好还是用「专业」的队列中间件更稳妥。</p>
 <p>究竟哪种方案更好呢？</p>
 <p>今天我就和你聊一聊把 Redis 当作队列，究竟是否合适这个问题。</p>
 <h2 id="从最简单的开始：List-队列"><a href="#从最简单的开始：List-队列" class="headerlink" title="从最简单的开始：List 队列"></a>从最简单的开始：List 队列</h2><p>如果你的业务需求足够简单，想把 Redis 当作队列来使用，肯定最先想到的就是使用 List 这个数据类型。因为 List 底层的实现就是一个「链表」，在头部和尾部操作元素，时间复杂度都是 O(1)，这意味着它非常符合消息队列的模型。如果把 List 当作队列，你可以这么来用。</p>
 <p>生产者使用 LPUSH 发布消息：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1:6379&gt; LPUSH queue msg1</span><br><span class="line">(integer) 1</span><br><span class="line">127.0.0.1:6379&gt; LPUSH queue msg2</span><br><span class="line">(integer) 2</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">127.0.0.1:6379&gt; LPUSH queue msg1
+(integer) 1
+127.0.0.1:6379&gt; LPUSH queue msg2
+(integer) 2<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>消费者这一侧，使用 RPOP 拉取消息：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1:6379&gt; RPOP queue</span><br><span class="line">&quot;msg1&quot;</span><br><span class="line">127.0.0.1:6379&gt; RPOP queue</span><br><span class="line">&quot;msg2&quot;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">127.0.0.1:6379&gt; RPOP queue
+&quot;msg1&quot;
+127.0.0.1:6379&gt; RPOP queue
+&quot;msg2&quot;<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>这个模型非常简单，也很容易理解：</p>
 <img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327120025728.png" alt="image-20220327120025728" style="zoom:80%;" />
 
 <p>但这里有个小问题，当队列中已经没有消息了，消费者在执行 RPOP 时，会返回 NULL。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1:6379&gt; RPOP queue</span><br><span class="line">(nil)   // 没消息了</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">127.0.0.1:6379&gt; RPOP queue
+(nil)   &#x2F;&#x2F; 没消息了<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span></span></code></pre>
 
 <p>而我们在编写消费者逻辑时，一般是一个「死循环」，这个逻辑需要不断地从队列中拉取消息进行处理，伪代码一般会这么写：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">while</span> <span class="keyword">true</span>:</span><br><span class="line">    msg = redis.rpop(<span class="string">&quot;queue&quot;</span>)</span><br><span class="line">    <span class="comment">// 没有消息，继续循环</span></span><br><span class="line">    <span class="keyword">if</span> msg == <span class="keyword">null</span>:</span><br><span class="line">        <span class="keyword">continue</span></span><br><span class="line">    <span class="comment">// 处理消息</span></span><br><span class="line">    handle(msg)</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-java" data-language="java"><code class="language-java"><span class="token keyword">while</span> <span class="token boolean">true</span><span class="token operator">:</span>
+    msg <span class="token operator">=</span> redis<span class="token punctuation">.</span><span class="token function">rpop</span><span class="token punctuation">(</span><span class="token string">"queue"</span><span class="token punctuation">)</span>
+    <span class="token comment">// 没有消息，继续循环</span>
+    <span class="token keyword">if</span> msg <span class="token operator">==</span> <span class="token keyword">null</span><span class="token operator">:</span>
+        <span class="token keyword">continue</span>
+    <span class="token comment">// 处理消息</span>
+    <span class="token function">handle</span><span class="token punctuation">(</span>msg<span class="token punctuation">)</span><span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>如果此时队列为空，那消费者依旧会频繁拉取消息，这会造成「CPU 空转」，不仅浪费 CPU 资源，还会对 Redis 造成压力。</p>
 <p>怎么解决这个问题呢？</p>
 <p>也很简单，当队列为空时，我们可以「休眠」一会，再去尝试拉取消息。代码可以修改成这样：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">while</span> <span class="keyword">true</span>:</span><br><span class="line">    msg = redis.rpop(<span class="string">&quot;queue&quot;</span>)</span><br><span class="line">    <span class="comment">// 没有消息，休眠2s</span></span><br><span class="line">    <span class="keyword">if</span> msg == <span class="keyword">null</span>:</span><br><span class="line">        sleep(<span class="number">2</span>)</span><br><span class="line">        <span class="keyword">continue</span></span><br><span class="line">    <span class="comment">// 处理消息        </span></span><br><span class="line">    handle(msg)</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-java" data-language="java"><code class="language-java"><span class="token keyword">while</span> <span class="token boolean">true</span><span class="token operator">:</span>
+    msg <span class="token operator">=</span> redis<span class="token punctuation">.</span><span class="token function">rpop</span><span class="token punctuation">(</span><span class="token string">"queue"</span><span class="token punctuation">)</span>
+    <span class="token comment">// 没有消息，休眠2s</span>
+    <span class="token keyword">if</span> msg <span class="token operator">==</span> <span class="token keyword">null</span><span class="token operator">:</span>
+        <span class="token function">sleep</span><span class="token punctuation">(</span><span class="token number">2</span><span class="token punctuation">)</span>
+        <span class="token keyword">continue</span>
+    <span class="token comment">// 处理消息        </span>
+    <span class="token function">handle</span><span class="token punctuation">(</span>msg<span class="token punctuation">)</span><span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>这就解决了 CPU 空转问题。</p>
 <p>这个问题虽然解决了，但又带来另外一个问题：当消费者在休眠等待时，有新消息来了，那消费者处理新消息就会存在「延迟」。</p>
@@ -525,7 +545,13 @@
 <img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327120032998.png" alt="image-20220327120032998" style="zoom:80%;" />
 
 <p>现在，你可以这样来拉取消息了：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">while</span> <span class="keyword">true</span>:</span><br><span class="line">	<span class="comment">// 没消息阻塞等待，0表示不设置超时时间</span></span><br><span class="line">    msg = redis.brpop(<span class="string">&quot;queue&quot;</span>, <span class="number">0</span>)</span><br><span class="line">    <span class="keyword">if</span> msg == <span class="keyword">null</span>:</span><br><span class="line">        <span class="keyword">continue</span></span><br><span class="line">    <span class="comment">// 处理消息</span></span><br><span class="line">    handle(msg)</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-java" data-language="java"><code class="language-java"><span class="token keyword">while</span> <span class="token boolean">true</span><span class="token operator">:</span>
+	<span class="token comment">// 没消息阻塞等待，0表示不设置超时时间</span>
+    msg <span class="token operator">=</span> redis<span class="token punctuation">.</span><span class="token function">brpop</span><span class="token punctuation">(</span><span class="token string">"queue"</span><span class="token punctuation">,</span> <span class="token number">0</span><span class="token punctuation">)</span>
+    <span class="token keyword">if</span> msg <span class="token operator">==</span> <span class="token keyword">null</span><span class="token operator">:</span>
+        <span class="token keyword">continue</span>
+    <span class="token comment">// 处理消息</span>
+    <span class="token function">handle</span><span class="token punctuation">(</span>msg<span class="token punctuation">)</span><span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <blockquote>
 <p>使用 BRPOP 这种阻塞式方式拉取消息时，还支持传入一个「超时时间」，如果设置为 0，则表示不设置超时，直到有新消息才返回，否则会在指定的超时时间后返回 NULL。</p>
@@ -550,23 +576,54 @@
 
 <p>假设你想开启 2 个消费者，同时消费同一批数据，就可以按照以下方式来实现。</p>
 <p>首先，使用 SUBSCRIBE 命令，启动 2 个消费者，并「订阅」同一个队列。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">// 2个消费者 都订阅一个队列</span><br><span class="line">127.0.0.1:6379&gt; SUBSCRIBE queue</span><br><span class="line">Reading messages... (press Ctrl-C to quit)</span><br><span class="line">1) &quot;subscribe&quot;</span><br><span class="line">2) &quot;queue&quot;</span><br><span class="line">3) (integer) 1</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">&#x2F;&#x2F; 2个消费者 都订阅一个队列
+127.0.0.1:6379&gt; SUBSCRIBE queue
+Reading messages... (press Ctrl-C to quit)
+1) &quot;subscribe&quot;
+2) &quot;queue&quot;
+3) (integer) 1<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>此时，2 个消费者都会被阻塞住，等待新消息的到来。之后，再启动一个生产者，发布一条消息。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1:6379&gt; PUBLISH queue msg1</span><br><span class="line">(integer) 1</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">127.0.0.1:6379&gt; PUBLISH queue msg1
+(integer) 1<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span></span></code></pre>
 
 <p>这时，2 个消费者就会解除阻塞，收到生产者发来的新消息。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1:6379&gt; SUBSCRIBE queue</span><br><span class="line">// 收到新消息</span><br><span class="line">1) &quot;message&quot;</span><br><span class="line">2) &quot;queue&quot;</span><br><span class="line">3) &quot;msg1&quot;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">127.0.0.1:6379&gt; SUBSCRIBE queue
+&#x2F;&#x2F; 收到新消息
+1) &quot;message&quot;
+2) &quot;queue&quot;
+3) &quot;msg1&quot;<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>看到了么，使用 Pub/Sub 这种方案，既支持阻塞式拉取消息，还很好地满足了多组消费者，消费同一批数据的业务需求。</p>
 <p>除此之外，Pub/Sub 还提供了「匹配订阅」模式，允许消费者根据一定规则，订阅「多个」自己感兴趣的队列。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">// 订阅符合规则的队列</span><br><span class="line">127.0.0.1:6379&gt; PSUBSCRIBE queue.*</span><br><span class="line">Reading messages... (press Ctrl-C to quit)</span><br><span class="line">1) &quot;psubscribe&quot;</span><br><span class="line">2) &quot;queue.*&quot;</span><br><span class="line">3) (integer) 1</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">&#x2F;&#x2F; 订阅符合规则的队列
+127.0.0.1:6379&gt; PSUBSCRIBE queue.*
+Reading messages... (press Ctrl-C to quit)
+1) &quot;psubscribe&quot;
+2) &quot;queue.*&quot;
+3) (integer) 1<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>这里的消费者，订阅了 queue.* 相关的队列消息。之后，生产者分别向 queue.p1 和 queue.p2 发布消息。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1:6379&gt; PUBLISH queue.p1 msg1</span><br><span class="line">(integer) 1</span><br><span class="line">127.0.0.1:6379&gt; PUBLISH queue.p2 msg2</span><br><span class="line">(integer) 1</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">127.0.0.1:6379&gt; PUBLISH queue.p1 msg1
+(integer) 1
+127.0.0.1:6379&gt; PUBLISH queue.p2 msg2
+(integer) 1<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>这时再看消费者，它就可以接收到这 2 个生产者的消息了。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1:6379&gt; PSUBSCRIBE queue.*</span><br><span class="line">Reading messages... (press Ctrl-C to quit)</span><br><span class="line">...</span><br><span class="line">// 来自queue.p1的消息</span><br><span class="line">1) &quot;pmessage&quot;</span><br><span class="line">2) &quot;queue.*&quot;</span><br><span class="line">3) &quot;queue.p1&quot;</span><br><span class="line">4) &quot;msg1&quot;</span><br><span class="line"></span><br><span class="line">// 来自queue.p2的消息</span><br><span class="line">1) &quot;pmessage&quot;</span><br><span class="line">2) &quot;queue.*&quot;</span><br><span class="line">3) &quot;queue.p2&quot;</span><br><span class="line">4) &quot;msg2&quot;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">127.0.0.1:6379&gt; PSUBSCRIBE queue.*
+Reading messages... (press Ctrl-C to quit)
+...
+&#x2F;&#x2F; 来自queue.p1的消息
+1) &quot;pmessage&quot;
+2) &quot;queue.*&quot;
+3) &quot;queue.p1&quot;
+4) &quot;msg1&quot;
+
+&#x2F;&#x2F; 来自queue.p2的消息
+1) &quot;pmessage&quot;
+2) &quot;queue.*&quot;
+3) &quot;queue.p2&quot;
+4) &quot;msg2&quot;<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>模型就是下面这样：</p>
 <img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327120048852.png" alt="image-20220327120048852" style="zoom:80%;" />
@@ -641,14 +698,27 @@
 <li>XREAD：读取消息</li>
 </ul>
 <p>生产者发布 2 条消息：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">// *表示让Redis自动生成消息ID</span><br><span class="line">127.0.0.1:6379&gt; XADD queue * name zhangsan</span><br><span class="line">&quot;1618469123380-0&quot;</span><br><span class="line">127.0.0.1:6379&gt; XADD queue * name lisi</span><br><span class="line">&quot;1618469127777-0&quot;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">&#x2F;&#x2F; *表示让Redis自动生成消息ID
+127.0.0.1:6379&gt; XADD queue * name zhangsan
+&quot;1618469123380-0&quot;
+127.0.0.1:6379&gt; XADD queue * name lisi
+&quot;1618469127777-0&quot;<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>使用 XADD 命令发布消息，其中的「*」表示让 Redis 自动生成唯一的消息 ID。这个消息 ID 的格式是「时间戳-自增序号」。</p>
 <p>消费者拉取消息：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">// 从开头读取5条消息，0-0表示从开头读取</span><br><span class="line">127.0.0.1:6379&gt; XREAD COUNT 5 STREAMS queue 0-0</span><br><span class="line">1) 1) &quot;queue&quot;</span><br><span class="line">   2) 1) 1) &quot;1618469123380-0&quot;</span><br><span class="line">         2) 1) &quot;name&quot;</span><br><span class="line">            2) &quot;zhangsan&quot;</span><br><span class="line">      2) 1) &quot;1618469127777-0&quot;</span><br><span class="line">         2) 1) &quot;name&quot;</span><br><span class="line">            2) &quot;lisi&quot;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">&#x2F;&#x2F; 从开头读取5条消息，0-0表示从开头读取
+127.0.0.1:6379&gt; XREAD COUNT 5 STREAMS queue 0-0
+1) 1) &quot;queue&quot;
+   2) 1) 1) &quot;1618469123380-0&quot;
+         2) 1) &quot;name&quot;
+            2) &quot;zhangsan&quot;
+      2) 1) &quot;1618469127777-0&quot;
+         2) 1) &quot;name&quot;
+            2) &quot;lisi&quot;<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>如果想继续拉取消息，需要传入上一条消息的 ID：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1:6379&gt; XREAD COUNT 5 STREAMS queue 1618469127777-0</span><br><span class="line">(nil)</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">127.0.0.1:6379&gt; XREAD COUNT 5 STREAMS queue 1618469127777-0
+(nil)<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span></span></code></pre>
 
 <p>没有消息，Redis 会返回 NULL。</p>
 <img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327120114993.png" alt="image-20220327120114993" style="zoom:80%;" />
@@ -657,7 +727,8 @@
 <p>下面我们来看，针对前面提到的消息队列要求，Stream 都是如何解决的？</p>
 <p> <strong>Stream 是否支持「阻塞式」拉取消息？</strong></p>
 <p>可以的，在读取消息时，只需要增加 BLOCK 参数即可。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">// BLOCK 0 表示阻塞等待，不设置超时时间</span><br><span class="line">127.0.0.1:6379&gt; XREAD COUNT 5 BLOCK 0 STREAMS queue 1618469127777-0</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">&#x2F;&#x2F; BLOCK 0 表示阻塞等待，不设置超时时间
+127.0.0.1:6379&gt; XREAD COUNT 5 BLOCK 0 STREAMS queue 1618469127777-0<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span></span></code></pre>
 
 <p>这时，消费者就会阻塞等待，直到生产者发布新的消息才会返回。</p>
 <p> <strong>Stream 是否支持发布 / 订阅模式？</strong></p>
@@ -668,17 +739,41 @@
 </ul>
 <p>下面我们来看具体如何做？</p>
 <p>首先，生产者依旧发布 2 条消息：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1:6379&gt; XADD queue * name zhangsan</span><br><span class="line">&quot;1618470740565-0&quot;</span><br><span class="line">127.0.0.1:6379&gt; XADD queue * name lisi</span><br><span class="line">&quot;1618470743793-0&quot;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">127.0.0.1:6379&gt; XADD queue * name zhangsan
+&quot;1618470740565-0&quot;
+127.0.0.1:6379&gt; XADD queue * name lisi
+&quot;1618470743793-0&quot;<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>之后，我们想要开启 2 组消费者处理同一批数据，就需要创建 2 个消费者组：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">// 创建消费者组1，0-0表示从头拉取消息</span><br><span class="line">127.0.0.1:6379&gt; XGROUP CREATE queue group1 0-0</span><br><span class="line">OK</span><br><span class="line">// 创建消费者组2，0-0表示从头拉取消息</span><br><span class="line">127.0.0.1:6379&gt; XGROUP CREATE queue group2 0-0</span><br><span class="line">OK</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">&#x2F;&#x2F; 创建消费者组1，0-0表示从头拉取消息
+127.0.0.1:6379&gt; XGROUP CREATE queue group1 0-0
+OK
+&#x2F;&#x2F; 创建消费者组2，0-0表示从头拉取消息
+127.0.0.1:6379&gt; XGROUP CREATE queue group2 0-0
+OK<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>消费者组创建好之后，我们可以给每个「消费者组」下面挂一个「消费者」，让它们分别处理同一批数据。</p>
 <p>第一个消费组开始消费：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">// group1的consumer开始消费，&gt;表示拉取最新数据</span><br><span class="line">127.0.0.1:6379&gt; XREADGROUP GROUP group1 consumer COUNT 5 STREAMS queue &gt;</span><br><span class="line">1) 1) &quot;queue&quot;</span><br><span class="line">   2) 1) 1) &quot;1618470740565-0&quot;</span><br><span class="line">         2) 1) &quot;name&quot;</span><br><span class="line">            2) &quot;zhangsan&quot;</span><br><span class="line">      2) 1) &quot;1618470743793-0&quot;</span><br><span class="line">         2) 1) &quot;name&quot;</span><br><span class="line">            2) &quot;lisi&quot;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">&#x2F;&#x2F; group1的consumer开始消费，&gt;表示拉取最新数据
+127.0.0.1:6379&gt; XREADGROUP GROUP group1 consumer COUNT 5 STREAMS queue &gt;
+1) 1) &quot;queue&quot;
+   2) 1) 1) &quot;1618470740565-0&quot;
+         2) 1) &quot;name&quot;
+            2) &quot;zhangsan&quot;
+      2) 1) &quot;1618470743793-0&quot;
+         2) 1) &quot;name&quot;
+            2) &quot;lisi&quot;<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>同样地，第二个消费组开始消费：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">// group2的consumer开始消费，&gt;表示拉取最新数据</span><br><span class="line">127.0.0.1:6379&gt; XREADGROUP GROUP group2 consumer COUNT 5 STREAMS queue &gt;</span><br><span class="line">1) 1) &quot;queue&quot;</span><br><span class="line">   2) 1) 1) &quot;1618470740565-0&quot;</span><br><span class="line">         2) 1) &quot;name&quot;</span><br><span class="line">            2) &quot;zhangsan&quot;</span><br><span class="line">      2) 1) &quot;1618470743793-0&quot;</span><br><span class="line">         2) 1) &quot;name&quot;</span><br><span class="line">            2) &quot;lisi&quot;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">&#x2F;&#x2F; group2的consumer开始消费，&gt;表示拉取最新数据
+127.0.0.1:6379&gt; XREADGROUP GROUP group2 consumer COUNT 5 STREAMS queue &gt;
+1) 1) &quot;queue&quot;
+   2) 1) 1) &quot;1618470740565-0&quot;
+         2) 1) &quot;name&quot;
+            2) &quot;zhangsan&quot;
+      2) 1) &quot;1618470743793-0&quot;
+         2) 1) &quot;name&quot;
+            2) &quot;lisi&quot;<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>我们可以看到，这 2 组消费者，都可以获取同一批数据进行处理了。</p>
 <p>这样一来，就达到了多组消费者「订阅」消费的目的。模型如下：</p>
@@ -687,14 +782,24 @@
 <p><strong>消息处理时异常，Stream 能否保证消息不丢失，重新消费？</strong></p>
 <p>除了上面拉取消息时用到了消息 ID，这里为了保证重新消费，也要用到这个消息 ID。</p>
 <p>当一组消费者处理完消息后，需要执行 XACK 命令告知 Redis，这时 Redis 就会把这条消息标记为「处理完成」。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">// group1下的 1618472043089-0 消息已处理完成</span><br><span class="line">127.0.0.1:6379&gt; XACK queue group1 1618472043089-0</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">&#x2F;&#x2F; group1下的 1618472043089-0 消息已处理完成
+127.0.0.1:6379&gt; XACK queue group1 1618472043089-0<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span></span></code></pre>
 
 <p>模型图如下：</p>
 <img src="https://cdn.jsdelivr.net/gh/kuangtf/PictureBed/img/image-20220327120127314.png" alt="image-20220327120127314" style="zoom:80%;" />
 
 <p>如果消费者异常宕机，肯定不会发送 XACK，那么 Redis 就会依旧保留这条消息。</p>
 <p>待这组消费者重新上线后，Redis 就会把之前没有处理成功的数据，重新发给这个消费者。这样一来，即使消费者异常，也不会丢失数据了。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">// 消费者重新上线，0-0表示重新拉取未ACK的消息</span><br><span class="line">127.0.0.1:6379&gt; XREADGROUP GROUP group1 consumer1 COUNT 5 STREAMS queue 0-0</span><br><span class="line">// 之前没消费成功的数据，依旧可以重新消费</span><br><span class="line">1) 1) &quot;queue&quot;</span><br><span class="line">   2) 1) 1) &quot;1618472043089-0&quot;</span><br><span class="line">         2) 1) &quot;name&quot;</span><br><span class="line">            2) &quot;zhangsan&quot;</span><br><span class="line">      2) 1) &quot;1618472045158-0&quot;</span><br><span class="line">         2) 1) &quot;name&quot;</span><br><span class="line">            2) &quot;lisi&quot;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">&#x2F;&#x2F; 消费者重新上线，0-0表示重新拉取未ACK的消息
+127.0.0.1:6379&gt; XREADGROUP GROUP group1 consumer1 COUNT 5 STREAMS queue 0-0
+&#x2F;&#x2F; 之前没消费成功的数据，依旧可以重新消费
+1) 1) &quot;queue&quot;
+   2) 1) 1) &quot;1618472043089-0&quot;
+         2) 1) &quot;name&quot;
+            2) &quot;zhangsan&quot;
+      2) 1) &quot;1618472045158-0&quot;
+         2) 1) &quot;name&quot;
+            2) &quot;lisi&quot;<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p> <strong>Stream 数据会写入到 RDB 和 AOF 做持久化吗？</strong></p>
 <p>Stream 是新增加的数据类型，它与其它数据类型一样，每个写操作，也都会写入到 RDB 和 AOF 中。</p>
@@ -706,7 +811,9 @@
 <li>丢弃消息：中间件丢弃旧消息，只保留固定长度的新消息</li>
 </ol>
 <p>而 Redis 在实现 Stream 时，采用了第 2 个方案。在发布消息时，你可以指定队列的最大长度，防止队列积压导致内存爆炸。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">// 队列长度最大10000</span><br><span class="line">127.0.0.1:6379&gt; XADD queue MAXLEN 10000 * name zhangsan</span><br><span class="line">&quot;1618473015018-0&quot;</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-none"><code class="language-none">&#x2F;&#x2F; 队列长度最大10000
+127.0.0.1:6379&gt; XADD queue MAXLEN 10000 * name zhangsan
+&quot;1618473015018-0&quot;<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span></span></code></pre>
 
 <p>当队列长度超过上限后，旧消息会被删除，只保留固定长度的新消息。</p>
 <p>这么来看，Stream 在消息积压时，如果指定了最大长度，还是有可能丢失消息的。</p>

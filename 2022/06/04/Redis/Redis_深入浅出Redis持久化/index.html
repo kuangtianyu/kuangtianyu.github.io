@@ -536,7 +536,25 @@
 </ul>
 <p>redis.conf中配置RDB：</p>
 <p>快照周期：内存快照虽然可以通过技术人员手动执行SAVE或BGSAVE命令来进行，但生产环境下多数情况都会设置其周期性执行条件。</p>
-   <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># RDB 保存的条件</span></span><br><span class="line">save 900 1</span><br><span class="line">save 300 10</span><br><span class="line">save 60 10000</span><br><span class="line"></span><br><span class="line"><span class="comment"># bgsave 失败之后，是否停止持久化数据到磁盘，yes 表示停止持久化，no 表示忽略错误继续写文件。</span></span><br><span class="line">stop-writes-on-bgsave-error yes</span><br><span class="line"></span><br><span class="line"><span class="comment"># RDB 文件压缩</span></span><br><span class="line">rdbcompression yes</span><br><span class="line"></span><br><span class="line"><span class="comment"># 写入文件和读取文件时是否开启 RDB 文件检查，检查是否有无损坏，如果在启动是检查发现损坏，则停止启动。</span></span><br><span class="line">rdbchecksum yes</span><br><span class="line"></span><br><span class="line"><span class="comment"># RDB 文件名</span></span><br><span class="line">dbfilename dump.rdb</span><br><span class="line"></span><br><span class="line"><span class="comment"># RDB 文件目录</span></span><br><span class="line">dir ./</span><br></pre></td></tr></table></figure>
+   <pre class="line-numbers language-bash" data-language="bash"><code class="language-bash"><span class="token comment"># RDB 保存的条件</span>
+save <span class="token number">900</span> <span class="token number">1</span>
+save <span class="token number">300</span> <span class="token number">10</span>
+save <span class="token number">60</span> <span class="token number">10000</span>
+
+<span class="token comment"># bgsave 失败之后，是否停止持久化数据到磁盘，yes 表示停止持久化，no 表示忽略错误继续写文件。</span>
+stop-writes-on-bgsave-error <span class="token function">yes</span>
+
+<span class="token comment"># RDB 文件压缩</span>
+rdbcompression <span class="token function">yes</span>
+
+<span class="token comment"># 写入文件和读取文件时是否开启 RDB 文件检查，检查是否有无损坏，如果在启动是检查发现损坏，则停止启动。</span>
+rdbchecksum <span class="token function">yes</span>
+
+<span class="token comment"># RDB 文件名</span>
+dbfilename dump.rdb
+
+<span class="token comment"># RDB 文件目录</span>
+<span class="token function">dir</span> ./<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>① save 参数 它是用来配置触发 RDB 持久化条件的参数，满足保存条件时将会把数据持久化到硬盘。 默认配置说明如下：</p>
 <ul>
@@ -564,13 +582,38 @@
 <p><strong>开启 AOF 持久化：</strong></p>
 <ul>
 <li><p>通过命令行的方式</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">config <span class="built_in">set</span> appendonly yes</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-bash" data-language="bash"><code class="language-bash">config <span class="token builtin class-name">set</span> appendonly <span class="token function">yes</span><span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>优缺点：命令行启动优点是无需重启 Redis 服务，缺点是如果 Redis 服务重启，则之前使用命令行设置的配置就会失效。</p>
 </li>
 <li><p>通过修改配置文件的方式（redis.conf）</p>
 <p>Redis 的配置文件在它的根路径下的 redis.conf 文件中，只需要在配置文件中设置 <code>appendonly yes</code> 即可，默认 <code>appendonly no</code> 表示关闭 AOF 持久化</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># appendonly参数开启AOF持久化</span></span><br><span class="line">appendonly no  <span class="comment"># 表示关闭 AOF 持久化</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># AOF持久化的文件名，默认是appendonly.aof</span></span><br><span class="line">appendfilename <span class="string">&quot;appendonly.aof&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># AOF文件的保存位置和RDB文件的位置相同，都是通过dir参数设置的</span></span><br><span class="line">dir ./</span><br><span class="line"></span><br><span class="line"><span class="comment"># 同步策略</span></span><br><span class="line"><span class="comment"># appendfsync always  # 同步写回</span></span><br><span class="line">appendfsync everysec  <span class="comment"># 每秒写回</span></span><br><span class="line"><span class="comment"># appendfsync no  # 操作系统控制的写回</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># aof重写期间是否同步</span></span><br><span class="line">no-appendfsync-on-rewrite no</span><br><span class="line"></span><br><span class="line"><span class="comment"># 重写触发配置</span></span><br><span class="line">auto-aof-rewrite-percentage 100</span><br><span class="line">auto-aof-rewrite-min-size 64mb</span><br><span class="line"></span><br><span class="line"><span class="comment"># 加载aof出错如何处理</span></span><br><span class="line">aof-load-truncated yes</span><br><span class="line"></span><br><span class="line"><span class="comment"># 文件重写策略</span></span><br><span class="line">aof-rewrite-incremental-fsync yes</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-bash" data-language="bash"><code class="language-bash"><span class="token comment"># appendonly参数开启AOF持久化</span>
+appendonly no  <span class="token comment"># 表示关闭 AOF 持久化</span>
+
+<span class="token comment"># AOF持久化的文件名，默认是appendonly.aof</span>
+appendfilename <span class="token string">"appendonly.aof"</span>
+
+<span class="token comment"># AOF文件的保存位置和RDB文件的位置相同，都是通过dir参数设置的</span>
+<span class="token function">dir</span> ./
+
+<span class="token comment"># 同步策略</span>
+<span class="token comment"># appendfsync always  # 同步写回</span>
+appendfsync everysec  <span class="token comment"># 每秒写回</span>
+<span class="token comment"># appendfsync no  # 操作系统控制的写回</span>
+
+<span class="token comment"># aof重写期间是否同步</span>
+no-appendfsync-on-rewrite no
+
+<span class="token comment"># 重写触发配置</span>
+auto-aof-rewrite-percentage <span class="token number">100</span>
+auto-aof-rewrite-min-size 64mb
+
+<span class="token comment"># 加载aof出错如何处理</span>
+aof-load-truncated <span class="token function">yes</span>
+
+<span class="token comment"># 文件重写策略</span>
+aof-rewrite-incremental-fsync <span class="token function">yes</span><span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
 
 <p>优缺点：缺点是每次修改配置文件之后重启 Redis 才会生效，优点是之后重启 Redis 服务器修改的配置文件都是有效的</p>
 <blockquote>

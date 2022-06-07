@@ -656,7 +656,7 @@
 <li>如果不是 FIL_NULL ，说明该 undo slot 已经指向了一个 undo链表 ，也就是说这个 undo slot 已经被别的事务占用了，那就跳到下一个 undo slot ，判断该 undo slot 的值是不是 FIL_NULL ，重复上边的步骤。  </li>
 </ul>
 <p>一个 Rollback Segment Header 页面中包含 1024 个 undo slot ，如果这 1024 个 undo slot 的值都不为<br>FIL_NULL ，这就意味着这 1024 个 undo slot 都已经名花有主（被分配给了某个事务），此时由于新事务无法再获得新的 Undo页面 链表，就会回滚这个事务并且给用户报错  </p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Too many active concurrent transactions</span><br></pre></td></tr></table></figure>
+<pre class="line-numbers language-sql" data-language="sql"><code class="language-sql">Too many active concurrent <span class="token keyword">transactions</span><span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
 
 <p>当一个事务提交时，它所占用的 undo slot 有两种命运：  </p>
 <ul>
